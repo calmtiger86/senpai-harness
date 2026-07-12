@@ -77,15 +77,13 @@ hooks/hooks.json             # PreToolUse/UserPromptSubmit 등 훅 등록
 scripts/                     # 안전 경계 코어(state-store, approval-gate, scope-check 등)
 vault-template/              # Obsidian vault 템플릿(10폴더)
 project-template/            # 대상 프로젝트에 복사되는 CLAUDE.md/AGENTS.md/senpai.config.yaml
-tests/unit/                  # 안전 경계 유닛 테스트
-docs/                        # 설계 문서 + 검증 기록
+docs/                        # 설계 문서 (00_CONCEPT ~ 11_DEPLOYMENT_STRATEGY, SAFETY_ENFORCEMENT_POLICY)
 ```
 
 ## 문서
 
 - [`docs/00_CONCEPT.md`](docs/00_CONCEPT.md) ~ [`docs/11_DEPLOYMENT_STRATEGY.md`](docs/11_DEPLOYMENT_STRATEGY.md): 설계 명세
 - [`docs/SAFETY_ENFORCEMENT_POLICY.md`](docs/SAFETY_ENFORCEMENT_POLICY.md): 안전 경계 정책과 감사 이력
-- [`docs/HARNESS_ENGINEERING.md`](docs/HARNESS_ENGINEERING.md): 라이브 검증 기록
 
 ## Phase 2 (계획, MVP 필수 아님)
 

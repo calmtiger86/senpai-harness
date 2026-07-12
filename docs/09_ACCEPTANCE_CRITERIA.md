@@ -112,15 +112,18 @@ P6 원본 세션(수정 전)에서는 사용자가 로그인 기능을 명시적
 - [x] 반복 오류 횟수를 증가시킨다 — frontmatter `recurrence_count` 증가(2단계).
 - [x] 반복 3회 이상이면 Playbook 후보를 제안한다 — `PB-000N.md` 생성 + `Playbook Index.md` 등록(4단계), 사용자에게 쉬운 말로 안내까지 포함.
 
-### 11. Parallel Council Router — **재정정 (2026-07 WP-A1~A3): Phase 2+ 보류를 해제하고 실제 구현됨**
+### 11. Parallel Council Router — **재정정 (2026-07 WP-A5 라이브 검증): 정적 구현(WP-A1~A3)에 이어 실제 병렬 스폰을 라이브 세션으로 실측 완료**
 
 P6 시점의 직전 정정은 "의도적 보류(Phase 2+), 미구현이 정상"이었으나, 2026-07 WP-A1~A3에서 보류를 해제하고 실제로 구현했다: `scripts/select-parallel-council.js`(순수 함수 라우터, `tests/unit/select-parallel-council.test.js`로 검증) + `skills/parallel-council/SKILL.md`(최상위 루프의 병렬 스폰 절차) + `hooks/scripts/handler.js`의 UserPromptSubmit Council 넛지 배선(`tests/unit/handler.test.js`의 WP-A3 케이스들). 구현이 `docs/07_MODEL_ROUTING_SPEC.md`의 원 매트릭스와 다른 부분(Builder/Nondev Explainer 제외 등)은 같은 문서의 "구현된 라우터와 위 매트릭스의 의도적 차이" 정정 각주에 기록돼 있다.
 
-- [x] 요청의 불확실성, 위험도, 복잡도를 평가한다. — 의도 라벨(`scripts/classify-intent.js`) + 위험 키워드 6범주 + 오류 반복 횟수(`recurrence_count`)라는 검사 가능한 신호로 평가(`scripts/select-parallel-council.js`).
-- [x] 적절한 Council mode를 선택한다. — 5개 모드(fast_single_agent/small_council/discovery_council/safety_council/debug_council) 결정 테이블, 위험 신호가 1순위로 모든 조건을 앞선다.
-- [x] 병렬 분석은 기본적으로 읽기 전용이다. — 위원은 전원 자문 역할이며, 어떤 모드의 `agents`에도 `builder`/`builder-runtime`이 포함되지 않음을 코드 불변식 + 테스트로 강제.
-- [x] 코드 쓰기는 Single Writer 원칙을 따른다. — Council은 자문만 하고, 쓰기는 기존 승인 경로(`docs/SAFETY_ENFORCEMENT_POLICY.md`)로만 일어난다.
-- [x] 사용자에게는 모델명이 아니라 역할로 설명한다. — `skills/parallel-council/SKILL.md` 4단계 종합 형식이 역할명(기획/기술/위험/최소 구현 관점 등)만 노출.
+WP-A5에서 이 구현이 코드 존재만이 아니라 **실제 라이브 세션에서 정말 병렬로 작동하는지**를 스크래치 워크스페이스(`--session-id` 고정 + `--resume`, 2턴)로 실측했다 — `docs/P8_PARALLEL_COUNCIL_LIVE_VERIFICATION.md` 참고. 모델 자기 보고가 아니라 세션 transcript와 서브에이전트별 개별 실행 로그(`subagents/agent-*.jsonl`)의 실제 타임스탬프를 직접 파싱해 확인했다: safety_council(위험 키워드 "결제")과 discovery_council(신규 프로젝트) 두 모드 모두에서 명단과 정확히 일치하는 4명이 호출됐고, 서브에이전트 실행 구간이 실제로 겹쳤다(discovery_council은 4개 tool_use가 완전히 같은 `message.id` 안에서 배치된 이상적 사례, safety_council은 1+3 메시지 배치였지만 실행 구간은 4명 전원 겹침 확인). 부수적으로 실제 결함 하나를 찾았다 — `UserPromptSubmit` 훅이 비동기 위원 완료 콜백(`<task-notification>`)과 실제 사용자 메시지를 구분하지 못해 한 턴 안에서도 여러 번 재발동되는 것을 확인했다(실제 사용자 발화는 3건인데 훅 발동은 10회) — 이번 두 턴에서는 모델이 반응하지 않아 무해했으나 구조적 보장은 아니며, 이번 작업 범위(문서만 수정) 밖의 후속 검토 항목으로 `P8` 문서에 정직하게 남겨뒀다.
+
+- [x] 요청의 불확실성, 위험도, 복잡도를 평가한다. — 의도 라벨(`scripts/classify-intent.js`) + 위험 키워드 6범주 + 오류 반복 횟수(`recurrence_count`)라는 검사 가능한 신호로 평가(`scripts/select-parallel-council.js`). **라이브 확인**: "결제 기능 넣어주세요"(add_feature+위험키워드), "새 앱 만들고 싶어요"(start_project) 두 실제 메시지가 각각 올바른 신호로 평가됨(`docs/P8_PARALLEL_COUNCIL_LIVE_VERIFICATION.md`).
+- [x] 적절한 Council mode를 선택한다. — 5개 모드(fast_single_agent/small_council/discovery_council/safety_council/debug_council) 결정 테이블, 위험 신호가 1순위로 모든 조건을 앞선다. **라이브 확인**: 두 실제 메시지가 각각 `safety_council`/`discovery_council`로 정확히 라우팅됨(훅 넛지 텍스트로 직접 확인).
+- [x] 병렬 분석은 기본적으로 읽기 전용이다. — 위원은 전원 자문 역할이며, 어떤 모드의 `agents`에도 `builder`/`builder-runtime`이 포함되지 않음을 코드 불변식 + 테스트로 강제. **라이브 확인**: 8개 위원 서브에이전트(두 턴 합산) 전원의 실행 로그에서 `Write`/`Edit` 도구 호출 0건.
+- [x] 코드 쓰기는 Single Writer 원칙을 따른다. — Council은 자문만 하고, 쓰기는 기존 승인 경로(`docs/SAFETY_ENFORCEMENT_POLICY.md`)로만 일어난다. **라이브 확인**: 두 턴 전체에서 Write 2건 모두 `vault/.../Unknown Map.md`(Obsidian 기억 축, `scope-check.js`가 "not gated by build approval"로 명시적 허용)였고 제품 코드 Write/Edit·PreToolUse deny는 0건.
+- [x] 사용자에게는 모델명이 아니라 역할로 설명한다. — `skills/parallel-council/SKILL.md` 4단계 종합 형식이 역할명(기획/기술/위험/최소 구현 관점 등)만 노출. **라이브 확인**: 두 턴의 실제 채팅 응답 모두 "기획/기술/위험/최소 구현 관점"으로만 종합됐고 모델명/티어 노출 0건.
+- **병렬성 자체의 실측(신규, R1 해소)**: safety_council·discovery_council 두 모드 모두에서 서브에이전트 실행 로그의 실제 타임스탬프가 겹치는 구간을 확인(각각 33초·58초 전원 동시 실행) — 메시지 배치뿐 아니라 실제 실행 동시성까지 확인됨(`docs/P8_PARALLEL_COUNCIL_LIVE_VERIFICATION.md` 발견 1·2).
 
 ### 12. Model Routing — **정정 (2026-07 P6/WP-B3 재확인): 정적 배정 + 동적 승격 공식 확정**
 
@@ -136,11 +139,14 @@ Fable 5 자문에서 지적되고 직접 코드로 재확인됨 — `agents/*.md
 
 **정정 (P5 라이브 검증, 2026-07)**: 두 번째 항목("marketplace 구조로 이동 가능한 파일 구조")은 원래 별도 이동(`plugins/senpai-harness/`로 재구성)을 전제했으나, 실제로는 이동 없이 `.claude-plugin/marketplace.json`에 `source: "./"` 자기참조 항목 하나만 추가해 충족했다 — `claude plugin validate --strict` + 실제 `marketplace add`/`install --scope user`/`uninstall`/`marketplace remove` 설치 사이클로 검증 완료(`tests/smoke/real-session.md` 참고). 네 번째 항목("비공개/공개 저장소 역할 구분")도 구조 분리가 필요 없어졌다 — 같은 저장소가 지금은 비공개(원격 없음), 검증 완료 후 그대로 공개하면 배포 저장소가 된다(`docs/11_DEPLOYMENT_STRATEGY.md`).
 
+**정정 (P9 release 브랜치 실측, 2026-07, WP-C5)**: 위 P5 검증은 이 개발 저장소 자체(내부 문서 전부 포함)를 설치한 것이었다 — "필터링된 release 브랜치를 설치해도 내부 문서가 정말 빠지는가"는 별도로 실측이 필요했다. `scripts/dev/build-release.js`로 만든 release 워크트리를 실제로 `marketplace add`→`install --scope user`하고 설치된 캐시 디렉토리를 직접 `find`/`diff`로 뜯어본 결과, 내부 전용 문서(P0~P7, `HARNESS_ENGINEERING.md`, `Design process meeting materials/`, `tests/`, `scripts/dev/`)는 **0건** 포함됐고, 캐시 파일 목록(129개)이 release 트리와 정확히 일치했다. 설치된 캐시로 `/senpai-harness:init`→`/senpai-harness:doctor`도 스크래치 프로젝트에서 정상 동작을 확인했다. 단, **release 트리의 `README.md`가 제외된 파일(`docs/HARNESS_ENGINEERING.md`, `tests/unit/`)을 여전히 참조하는 죽은 링크/설명이 남아 있어 공개 전환 전 수정이 필요하다** — 상세 근거와 재현 절차는 `docs/P9_RELEASE_BRANCH_LIVE_VERIFICATION.md` 참고.
+
 - [x] `.claude-plugin/plugin.json`이 존재한다.
 - [x] marketplace 구조를 가진다(자기참조, 재구성 불필요 — 위 정정 참고).
-- [x] README에 plugin 설치 흐름이 설명되어 있다.
+- [x] README에 plugin 설치 흐름이 설명되어 있다 — P9가 발견한 죽은 참조 2건(`docs/HARNESS_ENGINEERING.md` 링크, `tests/unit/` 구조 다이어그램 줄)은 발견 직후 `main`의 README.md에서 제거해 수정 완료. **단, release 브랜치는 수정 전 `main@8da1c50` 기준 빌드(커밋 `6649807`)라 재빌드 전까지 죽은 참조가 그대로 남아 있다 — 공개 전환 전 `node scripts/dev/build-release.js` 재실행 필요(독립 검수에서 release 워크트리 grep으로 실측 확인).**
 - [x] 비공개/공개 저장소는 별도 구조가 필요 없음을 확인 — 위 정정 참고.
 - [x] MCP는 MVP 필수가 아니라 Phase 2 optional extension으로 문서화되어 있다.
+- [x] **필터링된 release 브랜치를 실제로 설치해도 내부 문서가 배포 캐시에 포함되지 않는다** — P9 실측, 제외 대상 파일 0건 확인(`docs/P9_RELEASE_BRANCH_LIVE_VERIFICATION.md`).
 
 ### 14. Phase 2 MCP Readiness
 
