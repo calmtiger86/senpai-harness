@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "senpai-harness/state-log.schema.json",
+  "title": ".senpai/event_logs.jsonl (one object per line)",
+  "description": "Documents the shape scripts/event-log.js's appendEvent() writes, as called from hooks/scripts/handler.js's safeAppendEvent(). Distinct from state.schema.json: this is an append-only audit trail, not the live approval state.",
+  "type": "object",
+  "properties": {
+    "hook_event_name": {
+      "type": "string",
+      "description": "e.g. PreToolUse, UserPromptSubmit, SessionStart, PostToolUse, Stop, SessionEnd."
+    },
+    "tool_name": {
+      "type": "string",
+      "description": "Present for tool-call events (PreToolUse/PostToolUse), e.g. Write, Edit, Bash."
+    },
+    "file_path": {
+      "type": "string",
+      "description": "tool_input.file_path when present. Redacted to '[REDACTED]' by redactIfSecretPath() if it resolves to a secret path."
+    },
+    "command": {
+      "type": "string",
+      "description": "tool_input.command for Bash calls. Redacted to '[REDACTED: command referenced a secret path]' if any token in the command resolves to a secret path."
+    },
+    "content": {
+      "type": "string",
+      "description": "tool_input.content for Write calls. Redacted to '[REDACTED]' alongside file_path/command redaction."
+    },
+    "logged_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp added by appendEvent() unless the caller already supplied one."
+    }
+  },
+  "required": ["hook_event_name", "logged_at"],
+  "additionalProperties": false
+}

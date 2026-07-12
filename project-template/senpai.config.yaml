@@ -1,0 +1,63 @@
+# Senpai Harness — 프로젝트 설정
+# 이 파일은 Senpai Harness 초기화 시 사용자 프로젝트 루트에 복사된다.
+# 출처: docs/03_TECHNICAL_SPEC.md "설정 파일" 절.
+
+harness:
+  name: senpai-harness
+  version: 0.1.0
+  audience: non_developer
+  default_language: ko
+  mode: guided_auto_drive
+
+obsidian:
+  vault_path: ./vault
+  required: true
+
+memory:
+  current_state: ./vault/10_Projects/{project}/Current State.md
+  session_memory: ./vault/10_Projects/{project}/Session Memory.md
+  decision_index: ./vault/20_Decisions/Decision Index.md
+  error_index: ./vault/30_Errors/Error Index.md
+  playbook_index: ./vault/40_Playbooks/Playbook Index.md
+  agent_graph: ./vault/60_Agent_Graph/Agent Graph.md
+
+routing:
+  default_state: orientation
+  direct_build_from_user: blocked
+  require_meeting_before_build: true
+  require_user_approval_before_code: true
+  require_evidence_before_done: true
+
+parallel:
+  default_mode: read_only_parallel
+  single_writer: true
+  allow_parallel_code_write: false
+
+model_tiers:
+  - fast
+  - coding
+  - strong_reasoning
+  - long_context
+  - cheap_background
+
+safety:
+  protect_secret_files: true
+  backup_before_overwrite: true
+  block_destructive_actions: true
+  # Not read by scope-check.js directly (editing this list has no runtime
+  # effect) -- it's a human-readable description of the categories that
+  # `guided-plan` consults (as its own hardcoded prose, not by reading this
+  # file) when deciding which allowed_files to mark sensitive_files in a
+  # Phase Plan, and that scope-check.js's own hardcoded escalate-only
+  # pattern floor (matchesSensitiveFloor) independently encodes as filename/
+  # path patterns (docs/SAFETY_ENFORCEMENT_POLICY.md T2). A file marked
+  # sensitive_files (or caught by the floor) denies until the user sends
+  # [senpai-touch:<project>:<file>] individually; everything else in
+  # allowed_files proceeds automatically on approval (T1).
+  require_approval_for:
+    - dependency_install
+    - auth_change
+    - payment_change
+    - deployment_change
+    - database_migration
+    - destructive_file_operation

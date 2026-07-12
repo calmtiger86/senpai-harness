@@ -1,0 +1,18 @@
+{
+  "name": "senpai-harness",
+  "owner": {
+    "name": "CalmTiger"
+  },
+  "description": "AI Senpai Harness for non-developer vibe coding.",
+  "plugins": [
+    {
+      "name": "senpai-harness",
+      "source": "./",
+      "description": "Guided auto-drive Claude Code harness for non-developers. It opens meetings, surfaces hidden decisions, prevents overbuilding, verifies before done, and stores project memory in Obsidian.",
+      "version": "0.2.0",
+      "author": {
+        "name": "CalmTiger"
+      }
+    }
+  ]
+}

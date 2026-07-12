@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "senpai-harness/state.schema.json",
+  "title": ".senpai/state.json",
+  "description": "Documents the field set scripts/state-store.js reads and writes. Not wired into runtime validation (state-store.js fails closed on parse errors instead); this is a reference contract for anyone editing state-store.js, scope-check.js, or senpai-approve.js.",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Claude Code session_id that senpai-approve.js bound this approval to. approval-gate.js/scope-check.js must reject a match against any other session."
+    },
+    "scope_hash": {
+      "type": "string",
+      "description": "Hash of the approved file scope (scripts/scope-hash.js). Must match the current allowed_files list for isApprovalValid() to return true."
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp set by senpai-approve.js's recordApproval(), never by the model."
+    },
+    "intent": {
+      "type": "string",
+      "description": "Classified user intent from scripts/classify-intent.js (e.g. add_feature, debug, explain_nondev, start_project). Declared but never written (docs/P4_5_SECURITY_FIX_AND_STUB_AUDIT.md M3) -- classify-intent.js's CLI form only prints to stdout for that turn; skills re-derive intent from the raw message each turn instead of reading it back."
+    },
+    "meeting": {
+      "type": ["string", "null"],
+      "description": "Meeting type selected by scripts/select-meeting.js, or null for a non-meeting flow (debug, explain_nondev). Same as intent: declared but never written, re-derived each turn from conversation context and vault documents."
+    },
+    "understanding_state": {
+      "type": "string",
+      "description": "Free-form marker of how far the current meeting has progressed. Declared but never written -- guided-auto-drive/SKILL.md uses this as a conversational vocabulary the model judges each turn, not a value it reads back."
+    },
+    "unresolved_decisions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Intended to list decisions surfaced but not yet confirmed by the user. No code path currently writes this field (Fable 5 stub-audit finding, P4.5) -- meeting-system's build-readiness hint formula reads it as a number (`(state.unresolved_decisions ?? 1) > 0`), a type mismatch against this array schema, and is unreachable at runtime either way. Documented as-is rather than silently dropped; not yet wired to a real writer."
+    },
+    "approved_scope": {
+      "type": "boolean",
+      "description": "The single field that flips build-write gating from deny to allow/ask (T0-T3 model, 2026-07 redesign). Set ONLY by senpai-approve.js's recordApproval(), triggered ONLY by a [senpai-go:<project>] UserPromptSubmit phrase whose <project> matches the pending Phase Plan's own project folder."
+    },
+    "allowed_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Repo-root-relative paths approved for writing, derived from the pending Phase Plan's YAML frontmatter -- never from the approval trigger message itself."
+    },
+    "sensitive_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files touching a require_approval_for category (auth/payment/deploy/db/dependency-install/destructive) -- the Phase Plan's own frontmatter flags PLUS scope-check.js's hardcoded escalate-only pattern floor (matchesSensitiveFloor; the Phase Plan can only add to this, never remove a floor match). Written by senpai-approve.js's recordApproval() from the Phase Plan's sensitive_files frontmatter (T2). scope-check.js's checkPathsAgainstScope denies a write matching this list until the matching entry is also in confirmed_sensitive_files, even when the scope is otherwise approved; the rest of allowed_files (T1) is 'allow' with no re-confirmation."
+    },
+    "confirmed_sensitive_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Independent review finding (2026-07, HIGH/MAJOR/CONFIRMED): T2 used to return 'ask', proven unreliable under permissions.defaultMode:acceptEdits (the same signal the whole T0-T3 redesign exists to route around). Fixed: a sensitive_files write now denies until the user sends [senpai-touch:<project>:<file>] (UserPromptSubmit-based, immune to permission mode). Written one file at a time by senpai-approve.js's recordSensitiveFileConfirmation(); reset to [] by every fresh recordApproval(). Never grants scope on its own -- only consulted for a target checkPathsAgainstScope has already independently confirmed is in both allowed_files and sensitive_files."
+    },
+    "verification_targets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Build/test command strings the approved Phase Plan declared for verification (P4.5 C2). Written by senpai-approve.js's recordApproval() from the Phase Plan's verification_commands frontmatter (filtered by a JS-toolchain-prefix sanity check, not a security boundary). NEVER auto-executed via Bash -- a security review (P4.5) found a prefix filter cannot safely bound a Turing-complete runner (npm/node/etc can run arbitrary code), so scope-check.js does not grant Bash access based on this field. evidence-loop reads it only to ask the human to run these commands in their own terminal and report the result back. Empty array means the plan declared nothing to suggest."
+    },
+    "evidence_status": {
+      "type": "string",
+      "description": "Free-form status of the evidence-loop check for the current scope. Declared but never written -- evidence-loop/SKILL.md re-reads the project's Completion Evidence.md vault document each turn instead."
+    },
+    "pending_phase_plan_path": {
+      "type": "string",
+      "description": "Repo-root-relative path to the Phase Plan awaiting [senpai-go:<project>]. Written in-process by scope-check.js's checkToolCall as a side effect of allowing a vault write to a file named \"Phase Plan.md\" -- NOT by guided-plan itself (a model has no reachable way to write to .senpai/state.json directly). Read by senpai-approve.js to derive allowed_files/sensitive_files/verification_targets, and to validate the <project> the user typed."
+    }
+  },
+  "additionalProperties": false
+}
