@@ -174,6 +174,26 @@ function safeAppendEvent(event) {
   }
 }
 
+/**
+ * True when `prompt` is the synthetic callback the CLI injects into a
+ * UserPromptSubmit event when an async subagent (a Council member, etc.)
+ * finishes -- not something the user actually typed. Mirrors
+ * looksLikeApprovalAttempt's shape.
+ *
+ * Matches the opening tag with or without attributes (`<task-notification>`
+ * and `<task-notification agentId="...">` alike) -- an independent review
+ * (2026-07-16) found the first version's startsWith('<task-notification>')
+ * silently missed the attribute-bearing form. Deliberately anchored to the
+ * very start of the (whitespace-trimmed) prompt: a real user quoting the
+ * tag mid-message must never match (see
+ * testMidPromptTaskNotificationStringIsNotTreatedAsSynthetic).
+ * @param {string} prompt raw UserPromptSubmit `input.prompt`
+ * @returns {boolean}
+ */
+function looksLikeSyntheticCallback(prompt) {
+  return typeof prompt === 'string' && /^<task-notification[\s>]/.test(prompt.trimStart());
+}
+
 function main() {
   const raw = readStdin();
   let input = {};
@@ -188,6 +208,24 @@ function main() {
   // PreToolUse handling. This is deliberately a hard early-return, not a
   // per-branch condition.
   if (!isSenpaiManagedProject(process.cwd())) {
+    process.stdout.write('{}');
+    process.exit(0);
+  }
+
+  // Synthetic-callback guard (docs/P8_PARALLEL_COUNCIL_LIVE_VERIFICATION.md
+  // "발견 3", a live-verified defect): when an async Council/subagent
+  // finishes, the CLI re-enters this same UserPromptSubmit hook with the
+  // agent's own result text wrapped in <task-notification>...</task-notification>
+  // -- not a real user keystroke. Left unguarded, that text falls through to
+  // the branches below and can re-match classifyIntent()/
+  // selectParallelCouncil() off the committee's own Risk Card wording,
+  // re-injecting a council nudge for a message the user never sent (observed
+  // live as 8 extra hook firings across 2 turns -- exactly one per spawned
+  // subagent's completion callback). This must sit ahead of EVERY
+  // UserPromptSubmit branch below (approval capture, touch, stop,
+  // meeting/council dispatch) -- none of them are meant to treat a synthetic
+  // callback as a user message, so none of them may ever see it.
+  if (input.hook_event_name === 'UserPromptSubmit' && looksLikeSyntheticCallback(input.prompt)) {
     process.stdout.write('{}');
     process.exit(0);
   }

@@ -46,11 +46,13 @@ MVP는 MCP 없이도 완전히 동작해야 한다.
 
 **추가 정정 (WP-C4 초안 시점, 2026-07)**: 위 문단은 더 이상 사실이 아니다 — 지금은 원격 저장소가 연결되어 있고(`origin` = `github.com/calmtiger86/senpai-harness`, **비공개**) `main` 브랜치를 푸시하고 있다. `release` 브랜치는 아직 만들지 않았다(아래 절차가 그 초안이다).
 
-**추가 정정 (P5 라이브 검증, 2026-07)**: "비공개 개발 저장소"와 "공개 배포 저장소"를 별도 구조로 분리할 필요가 없다는 것까지 확인했다 — 이 저장소 자체가 이미 배포 가능한 marketplace+plugin 구조이므로, 검증이 끝난 뒤 **같은 저장소를 그대로** GitHub에 공개하면 그것이 배포 저장소가 된다. 아래 "공개 저장소 구조 예시"는 실제로 반영된 최종 구조다(더 이상 예시가 아님).
+**추가 정정 (P5 라이브 검증, 2026-07)**: "비공개 개발 저장소"와 "공개 배포 저장소"를 별도 구조로 분리할 필요가 없다는 것까지 확인했다 — 이 저장소 자체가 이미 배포 가능한 marketplace+plugin 구조이므로, 검증이 끝난 뒤 같은 저장소를 그대로 GitHub에 공개하면 그것이 배포 저장소가 될 수 있다.
+
+**최종 정정 (WP-C5 P9 실측 후 사용자 결정, 2026-07-16)**: 위 정정의 "같은 저장소를 그대로 공개"는 **기술적으로 가능함이 확인**됐지만(P9 실측: release 브랜치 캐시에 내부 문서 0건 유출), 실제 배포 방향은 사용자 결정으로 **별도 신규 공개 저장소**를 택했다 — 비공개 개발 이력 자체를 공개 저장소와 완전히 분리하기 위해서다. 결과: 기존 저장소(`calmtiger86/senpai-harness`, 전체 개발 이력 보유)는 `calmtiger86/senpai-harness-dev`로 이름을 바꿔 비공개로 유지하고, `calmtiger86/senpai-harness`라는 원래 이름은 `build-release.js`가 만드는 release 브랜치 내용만 담은 **새 저장소**가 가져간다(첫 커밋부터 시작, 개발 이력 없음). 아래 "저장소 구조"는 이 새 공개 저장소의 구조다.
 
 ### release 브랜치 운영 절차
 
-<!-- DRAFT: WP-C2 스크립트 실동작 확인 후 최종 확정 예정 -->
+**정정 (WP-C2 실동작 확인 + WP-C5 라이브 설치 검증 완료, 2026-07)**: 아래 절차는 더 이상 초안이 아니다 — `scripts/dev/build-release.js`가 실제로 존재하고, 실제 `marketplace add`/`install`/uninstall 사이클로 검증됐다(`docs/P9_RELEASE_BRANCH_LIVE_VERIFICATION.md`). 위 "최종 정정"에 따라 이 절차의 산출물(개발 저장소의 `release` 브랜치)은 이제 같은 저장소에 남지 않고 `calmtiger86/senpai-harness`(신규 공개 저장소)의 `main` 브랜치로 push된다.
 
 **언제 재생성하는가**: 버전 번호를 갱신하거나 새 태그를 붙일 때마다 다음 스크립트를 실행해 `release` 브랜치를 재생성한다:
 
@@ -67,9 +69,7 @@ node scripts/dev/build-release.js
 
 정합성은 `tests/unit/release-manifest.test.js`가 기계 검증한다(모든 `docs/*.md`가 include/exclude 중 정확히 한쪽에 분류되는지, 배포되는 파일이 제외된 문서를 참조하지 않는지 등).
 
-**주의**: `build-release.js`는 WP-C2 산출물로, 이 절을 쓰는 시점에는 **아직 존재하지 않는다**(매니페스트와 정합 테스트만 먼저 존재). 스크립트가 만들어지고 실동작이 확인되면 이 절의 DRAFT 표시를 제거하고 확정한다.
-
-## 저장소 구조 (실제 반영됨, 마켓플레이스+플러그인 자기참조)
+## 저장소 구조 (신규 공개 저장소 `calmtiger86/senpai-harness`, 마켓플레이스+플러그인 자기참조)
 
 ```text
 senpai-harness/
@@ -83,13 +83,14 @@ senpai-harness/
 ├── skills/
 ├── commands/
 ├── hooks/
-├── scripts/
+├── scripts/               # scripts/dev/(release 빌드 도구 자체)는 제외
 ├── vault-template/
 ├── templates/
 ├── project-template/
 ├── data-schema/
-├── tests/
-└── docs/
+└── docs/                  # 00~11 스펙 문서 + SAFETY_ENFORCEMENT_POLICY.md만(P0~P9 검증 기록 등은 제외)
 ```
+
+`tests/`는 포함되지 않는다(플러그인 로드와 무관, `release-manifest.json`의 exclude 대상).
 
 `.claude-plugin/marketplace.json`에 `source: "./"`로 단일 plugin 엔트리를 지정하는 구성은 `claude plugin validate --strict`와 실제 `claude plugin marketplace add` + `claude plugin install --scope user` 설치까지 라이브로 검증됐다(설치 후 즉시 uninstall + marketplace remove로 원상복구). 자세한 스키마 근거는 `docs/03_TECHNICAL_SPEC.md`의 "배포 아키텍처" 절 참고.
