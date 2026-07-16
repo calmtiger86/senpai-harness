@@ -150,12 +150,12 @@ Fable 5 자문에서 지적되고 직접 코드로 재확인됨 — `agents/*.md
 - [x] MCP는 MVP 필수가 아니라 Phase 2 optional extension으로 문서화되어 있다.
 - [x] **필터링된 release 브랜치를 실제로 설치해도 내부 문서가 배포 캐시에 포함되지 않는다** — P9 실측, 제외 대상 파일 0건 확인(`docs/P9_RELEASE_BRANCH_LIVE_VERIFICATION.md`).
 
-### 14. Phase 2 MCP Readiness
+### 14. Phase 2 MCP Readiness — **정정 (2026-07-17, P10 감사 N2): 4개 항목 모두 이전부터 실질 충족 상태였는데 체크박스만 미갱신돼 있었다. 항목별 실측 근거로 재확인 후 갱신.**
 
-- [ ] MCP가 담당할 기능 범위가 문서화되어 있다.
-- [ ] MVP 코드가 MCP 없이도 동작한다.
-- [ ] MCP가 없을 때도 Obsidian Vault template, agents, skills, hooks, doctor가 동작한다.
-- [ ] 향후 MCP 서버가 추가될 위치와 책임이 기술 명세에 정의되어 있다.
+- [x] MCP가 담당할 기능 범위가 문서화되어 있다. — `docs/03_TECHNICAL_SPEC.md` §"2차: Optional MCP Server"(후보 기능 목록), `docs/08_MVP_SCOPE.md` §"Phase 2 확장 범위"(후보 6개), `docs/11_DEPLOYMENT_STRATEGY.md` §"2단계 확장", `docs/01_PRD.md` §"2단계 확장".
+- [x] MVP 코드가 MCP 없이도 동작한다. — 런타임 전체(`scripts/`, `hooks/`, `.claude-plugin/`)에 "mcp" 문자열 grep 0건(MCP 의존 코드 자체가 존재하지 않음), `tests/unit/*.test.js` 21개 파일 전부 통과(P10 감사에서 직접 실행).
+- [x] MCP가 없을 때도 Obsidian Vault template, agents, skills, hooks, doctor가 동작한다. — P9 실측(release 설치판에서 `/senpai-harness:init` → vault 10개 폴더 생성 + `/senpai-harness:doctor` 5개 체크 전부 OK), P6/P8 라이브 세션(hooks dispatch·skills 캐스케이드·agents 병렬 소집 전부 MCP 없이 동작).
+- [x] 향후 MCP 서버가 추가될 위치와 책임이 기술 명세에 정의되어 있다. — `docs/03_TECHNICAL_SPEC.md`: 위치는 저장소 루트 `mcp/` 선택 확장(§"저장소 구조" 각주), 책임은 §"2차: Optional MCP Server"의 기능 목록, 실행 조건("플러그인과 독립적으로도 실행 가능해야")까지 명시.
 
 ## 금지 조건 — **정정 (2026-07 P6 라이브 검증)**: 이 표의 각 항목은 "그런 일이 실제로 일어나지 않았다"를 확인하는 항목이라, 체크박스는 위반 사례가 없었는지 재확인한 결과다.
 
