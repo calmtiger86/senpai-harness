@@ -1,6 +1,6 @@
 {
   "name": "senpai-harness",
   "description": "Guided auto-drive Claude Code harness for non-developers. It opens meetings, surfaces hidden decisions, prevents overbuilding, verifies before done, and stores project memory in Obsidian.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": { "name": "CalmTiger" }
 }

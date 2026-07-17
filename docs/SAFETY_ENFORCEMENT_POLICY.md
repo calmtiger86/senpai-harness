@@ -143,9 +143,13 @@ secret 경로(`.env`, `id_rsa`, `*.pem`, `*.key`, `*credential*`, `*secret*` 등
 
 ## 제어 영역(control-plane) 자기 보호 (Fable 5 독립 감사, 2026-07)
 
-secret 차단과 별개로, `senpai.config.yaml` 자신과 `.senpai/` 아래 전부(주로 `state.json`)는 **mutating 도구 호출(Write/Edit/NotebookEdit/MultiEdit/Bash)에 한해** scope 승인 여부와 무관하게 deny한다 — Phase Plan의 `allowed_files`에 이 경로들이 들어가더라도 마찬가지다. Read/Grep 같은 비-mutating 접근이나 `cat .senpai/state.json`처럼 진짜 읽기 전용인 Bash 명령은 대상이 아니다(사용자에게 거부 사유를 설명하려고 상태를 읽는 것은 정당하고 무해함). Bash 쪽은 반드시 `checkBashCommand`가 이미 추출한 mutating target에 대해서만 검사해야 한다 — 모든 Bash 호출의 원시 토큰을 무조건 검사하면 읽기 전용 허용목록(read-only allowlist)보다 먼저 실행돼 `cat .senpai/state.json` 같은 정상적인 읽기 명령까지 막아버리는 회귀가 생긴다(자체 테스트로 발견·수정).
+secret 차단과 별개로, `senpai.config.yaml` 자신과 `.senpai/` 아래 전부(주로 `state.json`)는 **mutating 도구 호출(Write/Edit/NotebookEdit/MultiEdit/Bash/apply_patch)에 한해** scope 승인 여부와 무관하게 deny한다 — Phase Plan의 `allowed_files`에 이 경로들이 들어가더라도 마찬가지다. Read/Grep 같은 비-mutating 접근이나 `cat .senpai/state.json`처럼 진짜 읽기 전용인 Bash 명령은 대상이 아니다(사용자에게 거부 사유를 설명하려고 상태를 읽는 것은 정당하고 무해함). Bash 쪽은 반드시 `checkBashCommand`가 이미 추출한 mutating target에 대해서만 검사해야 한다 — 모든 Bash 호출의 원시 토큰을 무조건 검사하면 읽기 전용 허용목록(read-only allowlist)보다 먼저 실행돼 `cat .senpai/state.json` 같은 정상적인 읽기 명령까지 막아버리는 회귀가 생긴다(자체 테스트로 발견·수정).
 
 **보장 범위는 비대칭이다.** Write/Edit/NotebookEdit/MultiEdit은 `input.file_path`/`input.notebook_path`를 직접 세그먼트 검사하므로 무조건적이다. Bash 쪽은 `extractMutatingTargets`가 실제로 분류해낸 대상에 한해서만 걸리는 **조건부** 보장이며, 두 경로 모두 심링크를 해석하지 않는다 — 즉 `ln -s .senpai/state.json innocuous.txt`처럼 심링크를 먼저 만든 뒤 그 무해해 보이는 이름으로 쓰기를 시도하면 이 검사를 우회할 수 있다. 이는 secret 경로 검사가 이미 안고 있는 것과 동일한 종류의 심링크 한계(LOW로 분류됨)이며, 이 기능 자체가 deny-only(오탐 시 최악의 경우가 "과잉 차단"일 뿐 안전 방향)라 별도 감사 없이 기록만 해 둔다.
+
+## apply_patch (Codex CLI 네이티브 도구) — 실제 Codex 세션에서 라이브 발견된 결함, 2026-07
+
+Codex CLI(OpenAI)에서 Senpai Harness를 실제로 라이브 테스트하는 과정(`docs/P15_CODEX_CLI_ENVIRONMENT_CLEANUP.md`)에서, Codex의 파일 수정 전용 도구인 `apply_patch`가 `MUTATING_TOOL_NAMES`에 아예 없어 승인/scope 검사를 완전히 건너뛴다는 것을 실제 세션으로 확인했다(`senpai.config.yaml`이 있고 승인된 scope가 전혀 없는 상태에서 `hello.txt`가 그대로 생성됨). `apply_patch`는 Claude Code의 `Write`/`Edit`와 달리 `input.file_path`가 없다 — 패치 전체(건드리는 모든 파일 경로 포함)가 `input.command` 문자열 하나에 OpenAI의 `*** Begin Patch / *** Add File|Update File|Delete File: <path> / *** End Patch` 형식으로 들어있고, 한 번의 호출이 여러 파일을 동시에 건드릴 수 있다. 이 비대칭 때문에 기존 단일-target 헬퍼(`getMutatingFileTarget`/`findSecretPath`의 `file_path` 분기)를 재사용하지 않고, `checkToolCall` 안에 `apply_patch` 전용 분기를 두어 patch 텍스트에서 추출한 모든 경로 각각에 대해 동일한 secret/제어영역/scope 검사를 독립적으로 적용한다(`extractApplyPatchTargets`, `scripts/scope-check.js`). 회귀 테스트: `tests/unit/scope-check.test.js` test38.
 
 ## 구현 매핑
 

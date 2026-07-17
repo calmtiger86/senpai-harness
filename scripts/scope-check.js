@@ -119,7 +119,18 @@ const { extractProjectFromPlanPath, buildTouchPhrase } = require('./senpai-appro
 // file-mutating tool with a name not listed here would still default-allow
 // until added -- ponytail: known limitation, not chased further without a
 // concrete case.
-const MUTATING_TOOL_NAMES = new Set(['Write', 'Edit', 'Bash', 'NotebookEdit', 'MultiEdit']);
+//
+// apply_patch is that concrete case: Codex CLI's native file-mutation tool
+// (live-verified via a real Codex session, 2026-07, docs/
+// P15_CODEX_CLI_ENVIRONMENT_CLEANUP.md) -- it isn't Write/Edit/MultiEdit
+// and carries no file_path field at all (the whole patch, including every
+// path it touches, is one string in tool_input.command), so checkToolCall
+// gives it its own branch above the generic logic below rather than
+// stretching getMutatingFileTarget/findSecretPath's single-target,
+// file_path-shaped contract to fit it. It's listed here too, defensively,
+// so a future reordering of checkToolCall can't silently regress it back
+// to the "non-mutating tool" passthrough.
+const MUTATING_TOOL_NAMES = new Set(['Write', 'Edit', 'Bash', 'NotebookEdit', 'MultiEdit', 'apply_patch']);
 
 const READ_ONLY_BASE_PATTERNS = [
   /^ls(\s|$)/,
@@ -543,6 +554,39 @@ function extractMutatingTargets(tokens, kind) {
     default:
       return null;
   }
+}
+
+// OpenAI apply_patch / V4A patch format: every file section starts with one
+// of these three header verbs, and an Update File section may additionally
+// contain a "*** Move to: <path>" line naming a second real path (the
+// rename destination) in the same section. All are real filesystem targets
+// this tool call touches, so all are collected.
+const APPLY_PATCH_HEADER_RE = /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/;
+
+/**
+ * Best-effort extraction of every file path an apply_patch tool call's own
+ * patch text touches. Codex's native file-mutation tool sends the entire
+ * patch as one string in tool_input.command -- there is no file_path field
+ * the way Write/Edit/NotebookEdit have one -- and a single call can touch
+ * multiple files in one patch, so this always returns an array, never a
+ * single path. Returns null when the text doesn't look like a patch at all
+ * (caller must then fall through to deny-by-default, per G1), matching
+ * extractMutatingTargets's same "confident extraction or null" contract.
+ * @param {string} command
+ * @returns {string[]|null}
+ */
+function extractApplyPatchTargets(command) {
+  if (typeof command !== 'string' || !command.includes('*** Begin Patch')) {
+    return null;
+  }
+  const targets = [];
+  for (const line of command.split('\n')) {
+    const match = APPLY_PATCH_HEADER_RE.exec(line.trimEnd());
+    if (match) {
+      targets.push(match[1].trim());
+    }
+  }
+  return targets.length > 0 ? targets : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1085,6 +1129,67 @@ function checkToolCall(callInfo, state) {
     const { tool_name: toolName, tool_input: toolInput } = callInfo || {};
     const input = toolInput || {};
     const repoRoot = process.cwd();
+
+    // apply_patch (Codex CLI's native file-mutation tool, live-verified
+    // 2026-07, docs/P15_CODEX_CLI_ENVIRONMENT_CLEANUP.md) is handled as its
+    // own self-contained branch, first, before any of the Write/Edit-shaped
+    // logic below: it carries no file_path field (the whole patch, and
+    // every path it touches, is one string in input.command) and a single
+    // call can touch multiple files, so it doesn't fit getMutatingFileTarget/
+    // findSecretPath's single-target, file_path-shaped contract. This
+    // re-derives the same three checks the rest of the function applies to
+    // Write/Edit (secret, control-plane, scope) directly against every
+    // extracted target instead of reshaping those helpers for one tool.
+    if (toolName === 'apply_patch') {
+      if (typeof input.command !== 'string') {
+        return { decision: 'deny', reason: 'unrecognized/unparseable tool_input, fail-closed per G1' };
+      }
+      const targets = extractApplyPatchTargets(input.command);
+      if (targets === null) {
+        return { decision: 'deny', reason: 'unrecognized/unparseable command, fail-closed per G1' };
+      }
+
+      for (const target of targets) {
+        const normalized = normalizeTargetPath(target, repoRoot);
+        const underVault = isUnderVaultDir(normalized, repoRoot);
+        const secretHit = underVault
+          ? (isHardSecretPath(target) ? target : null)
+          : (isSecretPath(target) ? target : null);
+        if (secretHit) {
+          return {
+            decision: 'deny',
+            reason: `secret path detected (${secretHit}), never auto-approved regardless of scope`
+          };
+        }
+        if (isControlPlaneCandidate(target)) {
+          return {
+            decision: 'deny',
+            reason: `control-plane path detected (${target}), never auto-approved regardless of scope`
+          };
+        }
+      }
+
+      // Same free-write exemption Write/Edit gets for vault/ (Obsidian
+      // Brain axis, not gated by build approval) -- but only when EVERY
+      // touched file is under vault/. A patch mixing a vault note with a
+      // product file must still clear the normal scope check below for the
+      // product-side target(s); it doesn't get to ride the exemption just
+      // because one path in the same patch happened to be a vault note.
+      const allVault = targets.every((target) => isUnderVaultDir(normalizeTargetPath(target, repoRoot), repoRoot));
+      if (allVault) {
+        for (const target of targets) {
+          const normalized = normalizeTargetPath(target, repoRoot);
+          backupIfExists(normalized);
+          if (path.basename(normalized) === 'Phase Plan.md') {
+            const relativePlanPath = path.relative(repoRoot, normalized);
+            writeState({ pending_phase_plan_path: relativePlanPath });
+          }
+        }
+        return { decision: 'allow', reason: 'vault document write (Obsidian Brain axis, not gated by build approval)' };
+      }
+
+      return checkPathsAgainstScope(targets, state, repoRoot);
+    }
 
     // NOTE: the G0 opt-in check (isSenpaiManagedProject, below) does NOT
     // live in this function. Security review finding (2026-07, CRITICAL,
