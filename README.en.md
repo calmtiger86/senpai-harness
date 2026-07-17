@@ -17,30 +17,42 @@
 ## Table of Contents
 
 - [Who this is for](#who-this-is-for)
-- [What "autopilot" actually means here](#what-autopilot-actually-means-here)
+- [The harness that keeps "autopilot" in check](#the-harness-that-keeps-autopilot-in-check)
 - [What it does](#what-it-does)
 - [Install](#install)
 - [License](#license)
 
-Everyone was a beginner once. Back then, there was a line we all heard from our seniors: "Just ask when you don't know. But do I really have to explain every little thing?"
+Everyone was a beginner once.
 
-Senpai Harness asks first — about the things you probably don't know — and kindly explains what's been decided before it ever starts the work. It plays the role of the ideal senior developer, the one that doesn't really exist in real life.
+Back then, there was a line we all heard from our seniors.
+
+"Just ask when you don't know. But do I really have to explain every little thing?"
+
+Senpai Harness asks first — about the things you probably don't know — and kindly explains what's been decided before it ever starts the work.
+
+It plays the role of the ideal senior developer, the one that doesn't really exist in real life.
 
 The most patient senpai for a non-developer trying vibe coding for the first time.
 
-Senpai Harness is an AI senior-developer ("senpai") harness that asks before acting, explains things in plain language, decides together, builds **only within an approved scope**, and logs every decision and failure to Obsidian (a markdown note-taking app). It installs as a plugin into Claude Code, the terminal-based AI coding tool.
+Senpai Harness is an AI senior-developer ("senpai") harness that asks first, explains things in plain language, decides together, builds only within "an approved scope,"
+
+and logs every decision and failure to Obsidian (a markdown note-taking app).
 
 ## Who this is for
 
-This was built for people who don't know any coding syntax, people opening a terminal or Claude Code for the very first time today, people who want to build an app, a chatbot, or an automation through vibe coding (describing what you want in conversation and letting AI write the code), and people who've abandoned a project before because they couldn't keep up with what the AI was doing.
+This was built for people who don't know any coding syntax, people opening a terminal or Claude Code for the very first time today, people who want to build an app, a chatbot, or an automation through vibe coding (describing what you want in conversation and letting AI write the code), and people who've given up on vibe coding before because keeping up with what the AI produced felt overwhelming.
 
-If you're already comfortable with code, the "ask first, then get approval" workflow this harness insists on may feel slow. Senpai Harness optimizes for **being able to follow along to the end**, not for speed.
+If you're already comfortable with code, the "ask first, then get approval" workflow this harness insists on may feel slow.
 
-## What "autopilot" actually means here
+Senpai Harness optimizes for "being able to follow along to the end," not for speed.
 
-It's easy to assume that installing Senpai Harness means the AI starts writing code on its own. It's actually the opposite.
+## The harness that keeps "autopilot" in check
 
-"Autopilot" here doesn't mean the AI decides things by itself — it means the AI automatically opens the right kind of meeting, surfaces the decisions you didn't know you needed to make as understandable options, and writes code **only within the scope you've approved**.
+Vibe coding is convenient because the AI writes the code on its own — but in practice, it often reasons its way toward whatever direction looks plausible and just runs with the decision itself.
+
+Leave that "autopilot" running with the AI making every call on its own, and it tangles into spaghetti code you can no longer touch.
+
+Instead of letting it reason things out and "autopilot" on its own, this is a harness that makes the AI automatically open the right kind of meeting, present the decisions you didn't know you needed to make as options you can understand, and write code only "within the scope you've approved."
 
 > Picture a home renovation. Until the homeowner signs the estimate, the contractor can't drive in a single nail — no matter how skilled they are. Nobody can sign on the homeowner's behalf, and even a signed estimate doesn't cover a room that was never listed on it.
 
