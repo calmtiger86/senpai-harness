@@ -22,7 +22,13 @@
 - [Install](#install)
 - [License](#license)
 
-Senpai Harness is an AI senior-developer ("senpai") harness that sits beside someone doing vibe coding for the first time — asking before acting, explaining things in plain language, deciding together, building **only within an approved scope**, and logging every decision and failure to Obsidian (a markdown note-taking app). It installs as a plugin into Claude Code, the terminal-based AI coding tool.
+Everyone was a beginner once. Back then, there was a line we all heard from our seniors: "Just ask when you don't know. But do I really have to explain every little thing?"
+
+Senpai Harness asks first — about the things you probably don't know — and kindly explains what's been decided before it ever starts the work. It plays the role of the ideal senior developer, the one that doesn't really exist in real life.
+
+The most patient senpai for a non-developer trying vibe coding for the first time.
+
+Senpai Harness is an AI senior-developer ("senpai") harness that asks before acting, explains things in plain language, decides together, builds **only within an approved scope**, and logs every decision and failure to Obsidian (a markdown note-taking app). It installs as a plugin into Claude Code, the terminal-based AI coding tool.
 
 ## Who this is for
 
