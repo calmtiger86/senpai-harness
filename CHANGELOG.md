@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.3.0] - 2026-07-17
+
 ## [0.2.0] - 2026-07-16
 
 ### Added (진행 중 — docs/P7_BIG_ITEMS_IMPLEMENTATION_PLAN.md 웨이브)
