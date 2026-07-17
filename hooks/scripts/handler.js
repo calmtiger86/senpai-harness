@@ -72,10 +72,26 @@ const COUNCIL_LABELS = {
 
 // docs/06_HOOKS_SPEC.md "2. UserPromptSubmit Hook" 원설계의 힌트 계산 규칙을
 // skills/meeting-system/SKILL.md "2단계"에 문서화된 그대로 옮긴 것.
-// `understanding_state`는 현재 아무 코드도 쓰지 않으므로(scripts/state-store.js의
-// STATE_FIELDS 주석 참고) buildApproved는 그 필드가 채워지기 전까지 구조적으로
-// 항상 false다 -- 이 훅이 새로 만든 제약이 아니라 기존 설계의 알려진 한계를
-// 그대로 반영한 것(docs/P6_MEETING_DISPATCH_LIVE_VERIFICATION.md 참고).
+//
+// 알려진 설계 결정, 새로 생긴 제약이 아님 (D4): `understanding_state`는
+// 현재 그리고 앞으로도 어떤 코드도 쓰지 않는 필드다(scripts/state-store.js의
+// STATE_FIELDS 주석, data-schema/state.schema.json의 필드 설명 참고) --
+// guided-auto-drive/SKILL.md가 "이해/결정 상태는 vault 문서와 대화로 판단하고
+// state.json에서 되읽지 않는다"고 명시적으로 설계했기 때문이다. 그 결과 이
+// 함수의 buildApproved는 understanding_state가 채워지기 전까지 구조적으로
+// 항상 false이고, 이 훅의 additionalContext 넛지 경로로는 selectMeeting()이
+// build_readiness_meeting을 반환하는 일이 절대 없다. Build Readiness Meeting은
+// 대신 별개의 스킬 경로로 도달한다: guided-auto-drive의 7단계(Guided Work)가
+// 이 함수/select-meeting.js를 거치지 않고 `guided-plan`을 직접 호출하며, 그
+// 스킬의 진입 게이트는 state.json이 아니라 대화 맥락과 vault 문서(Unknown
+// Map.md/Decision Index.md)를 모델이 직접 읽어 판단한다.
+//
+// 이 함수의 로직을 "고치지" 말 것: understanding_state에 값을 쓰는 코드를
+// 새로 만들면 위 guided-auto-drive의 기존 설계와 충돌한다. 안전 자체는 이
+// 힌트에 기대지 않는다 -- 실제 쓰기 승인은 `[senpai-go:...]` 캡처
+// (scripts/senpai-approve.js)가 독립적으로 강제한다. 근거: 라이브 세션 실측
+// (docs/P6_MEETING_DISPATCH_LIVE_VERIFICATION.md), docs/09_ACCEPTANCE_CRITERIA.md
+// 섹션 5, docs/06_HOOKS_SPEC.md "2. UserPromptSubmit Hook"의 정정 고지.
 function deriveMeetingStateHints(state) {
   const valid = state && state.valid !== false;
   const hasUnresolvedDecisions = !valid || (state.unresolved_decisions ?? 1) > 0;
@@ -99,6 +115,18 @@ function deriveMeetingStateHints(state) {
 // still needs to fire on a 3rd+ recurrence (see select-parallel-council.js's
 // module doc, rule 2). fast_single_agent/small_council get no council text,
 // only ever the pre-existing meeting nudge (or nothing, same as before).
+//
+// discovery_council/safety_council also get one more sentence appended
+// (docs/P11_FULL_SYSTEM_LIVE_VERIFICATION.md "발견 1", live-verified gap):
+// the committee-spawn instruction alone got the model to gather the right
+// answers but not to persist them, so `Unknown Map.md`/Decision Card never
+// got written on that run even though the underlying decisions had already
+// surfaced in chat. The added sentence asks only for a *record* of what the
+// council already produced -- never a re-investigation -- so it can't
+// regress the P8/P11-verified flexibility that a council answering the
+// question directly (instead of the model separately re-asking the user)
+// already satisfies "숨은 결정 드러내기"'s intent. debug_council is excluded:
+// it has no unknown-map/decision-card counterpart.
 function buildMeetingDispatchContext(intent, meeting, council) {
   const councilMode = council && council.mode;
   const isCouncilMode = councilMode === 'discovery_council' || councilMode === 'safety_council' || councilMode === 'debug_council';
@@ -112,7 +140,12 @@ function buildMeetingDispatchContext(intent, meeting, council) {
     return base;
   }
   const agents = (council.agents || []).join(', ');
-  return `${base} 이 요청은 ${COUNCIL_LABELS[councilMode]} 대상입니다. Task 도구로 다음 관점을 한 메시지 안에서 병렬로 호출하세요: ${agents}`;
+  const councilText = `${base} 이 요청은 ${COUNCIL_LABELS[councilMode]} 대상입니다. Task 도구로 다음 관점을 한 메시지 안에서 병렬로 호출하세요: ${agents}`;
+  const needsRecordFollowUp = councilMode === 'discovery_council' || councilMode === 'safety_council';
+  if (!needsRecordFollowUp) {
+    return councilText;
+  }
+  return `${councilText} 위원회 종합이 끝나면, 드러난 결정은 Unknown Map.md에 기록하고 아직 안 정해진 것은 Decision Card로 제시한 뒤 다음 단계로 진행하세요 (위원회가 이미 답한 내용을 그대로 옮겨 담으면 충분합니다 -- 다시 조사할 필요는 없습니다).`;
 }
 
 const APPROVAL_FAILURE_REASONS = {

@@ -24,10 +24,14 @@ disable-model-invocation: false
 
 ### 1단계 — 빠른 의도 분류 (`scripts/classify-intent.js`)
 
-`classify-intent.js`는 CLI 실행 블록(`require.main`)을 가진 스크립트다 — `node scripts/classify-intent.js "메시지"`로 바로 실행한다. `node -e "require(...)..."` 형태는 임의 코드 실행이라 `scripts/scope-check.js`(G1)가 항상 차단한다 — 절대 이 형태를 쓰지 않는다. (저장소 루트에서 실행한다고 가정.)
+`classify-intent.js`는 CLI 실행 블록(`require.main`)을 가진 스크립트다. `node -e "require(...)..."` 형태는 임의 코드 실행이라 `scripts/scope-check.js`(G1)가 항상 차단한다 — 절대 이 형태를 쓰지 않는다.
+
+**경로는 `scripts/classify-intent.js`(상대경로)가 아니라 `${CLAUDE_PLUGIN_ROOT}` 환경변수로 가리킨다.** 이 스킬은 이 저장소가 아니라 실제 사용자 프로젝트에서 실행되고, `scripts/init.js`는 사용자 프로젝트에 `scripts/` 디렉토리를 복사하지 않는다 — 상대경로 `scripts/classify-intent.js`는 사용자 프로젝트의 cwd에 존재하지 않는 파일을 가리켜, `scripts/scope-check.js`의 PreToolUse 훅이 Bash 호출 자체를 `unrecognized/unparseable command, fail-closed per G1`로 거부한다(Node가 실행되기 전에 훅이 막으므로 "Cannot find module" 같은 런타임 에러조차 보이지 않는다 — 실제 사용자 프로젝트로 라이브 재현한 실측 결과 확인됨). `${CLAUDE_PLUGIN_ROOT}`는 `commands/init.md`/`doctor.md`/`status.md`가 이미 쓰는 것과 같은 표준 환경변수로, 플러그인의 실제 설치 경로를 가리킨다.
+
+**인자가 있는 스크립트는 경로를 따옴표로 감싸지 않는다.** `scripts/shell-tokenize.js`의 `hasUnresolvableSyntax`는 한 Bash 명령 안에 최상위 따옴표 영역이 2개 이상이면 무조건 차단한다(round-3 문자열 연결 우회 방지 규칙 — 아래 3단계의 `select-meeting.js` 2-인자 제약과 같은 이유). `"${CLAUDE_PLUGIN_ROOT}/scripts/classify-intent.js" "메시지"`처럼 경로와 메시지 인자를 둘 다 따옴표로 감싸면 따옴표 영역이 2개가 되어 차단된다(직접 재현 확인) — 경로는 따옴표 없이, 메시지 인자만 따옴표로 감싼다:
 
 ```bash
-node scripts/classify-intent.js "로그인 기능 붙여줘"
+node ${CLAUDE_PLUGIN_ROOT}/scripts/classify-intent.js "로그인 기능 붙여줘"
 # -> add_feature
 ```
 
@@ -40,10 +44,10 @@ node scripts/classify-intent.js "로그인 기능 붙여줘"
 `select-meeting.js`는 `stateHints`(`buildApproved`, `hasUnresolvedDecisions`)를 받는다. 이 힌트는 `.senpai/state.json`(외부 진실源, 모델의 자기 보고를 신뢰하지 않는다 — `docs/SAFETY_ENFORCEMENT_POLICY.md`)에서 유도한다.
 
 ```bash
-node scripts/state-store.js
+node "${CLAUDE_PLUGIN_ROOT}/scripts/state-store.js"
 ```
 
-(`state-store.js`도 1단계의 `classify-intent.js`처럼 `require.main` CLI 블록을 가진 스크립트라 이 형태로 바로 실행되며 `readState()`의 JSON을 그대로 출력한다. `node -e "require(...)..."` 형태는 1단계와 똑같은 이유로 여기서도 항상 차단되므로 절대 쓰지 않는다.)
+(`state-store.js`도 1단계의 `classify-intent.js`처럼 `require.main` CLI 블록을 가진 스크립트라 이 형태로 바로 실행되며 `readState()`의 JSON을 그대로 출력한다. `node -e "require(...)..."` 형태는 1단계와 똑같은 이유로 여기서도 항상 차단되므로 절대 쓰지 않는다. 경로를 `${CLAUDE_PLUGIN_ROOT}`로 가리키는 이유는 1단계 참고 — 이 스크립트는 인자가 없으므로 경로를 따옴표로 감싸도 최상위 따옴표 영역이 1개뿐이라 안전하다(`commands/status.md`가 쓰는 것과 같은 형태).)
 
 `readState()`는 절대 throw하지 않는다: 파일이 없거나 손상되면 `{ valid: false, reason: 'missing' | 'corrupt' }`를 반환한다 (fail-closed, G4). 이 경우 아래처럼 **가장 보수적인 값**을 쓴다 — "아직 아무것도 결정된 게 없다"고 가정한다.
 
@@ -69,12 +73,12 @@ const buildApproved = valid &&
 
 ### 3단계 — 회의 매핑 (`scripts/select-meeting.js`)
 
-`select-meeting.js`도 CLI 실행 블록이 있다 — `node scripts/select-meeting.js <intent> [stateHintsJson]`로 실행한다.
+`select-meeting.js`도 CLI 실행 블록이 있다 — `node ${CLAUDE_PLUGIN_ROOT}/scripts/select-meeting.js <intent> [stateHintsJson]` 형태로 실행한다(경로를 `${CLAUDE_PLUGIN_ROOT}`로 가리키는 이유와 경로를 따옴표로 감싸지 않는 이유는 1단계 참고).
 
-**주의: 두 번째 인자(`stateHintsJson`)는 이 CLI 형태로 넘기지 않는다.** 하나의 Bash 명령 안에 따옴표로 감싼 인자가 2개 이상 있으면(`"add_feature" '{...}'`처럼) `scripts/scope-check.js`의 secret-check(`hasUnresolvableSyntax`)가 "따옴표 영역이 여러 개"라는 이유로 무조건 차단한다(round-3 연결 우회 방지 규칙, 스크립트 이름과 무관하게 적용됨). 대부분의 경우 2단계에서 이미 `hasUnresolvedDecisions`/`buildApproved`를 계산해뒀으므로, `stateHints`가 필요 없는 기본 형태만 쓴다:
+**주의: 두 번째 인자(`stateHintsJson`)는 이 CLI 형태로 넘기지 않는다.** 하나의 Bash 명령 안에 최상위 따옴표 영역이 2개 이상 있으면(`"add_feature" '{...}'`처럼, 또는 경로 자체를 따옴표로 감싸고 인자도 따옴표로 감싸는 경우도 마찬가지) `scripts/scope-check.js`의 secret-check(`hasUnresolvableSyntax`)가 "따옴표 영역이 여러 개"라는 이유로 무조건 차단한다(round-3 연결 우회 방지 규칙, 스크립트 이름과 무관하게 적용됨). 대부분의 경우 2단계에서 이미 `hasUnresolvedDecisions`/`buildApproved`를 계산해뒀으므로, `stateHints`가 필요 없는 기본 형태만 쓴다:
 
 ```bash
-node scripts/select-meeting.js "add_feature"
+node ${CLAUDE_PLUGIN_ROOT}/scripts/select-meeting.js "add_feature"
 # -> discovery_meeting (stateHints 없으면 hasUnresolvedDecisions/buildApproved 모두 "아직 아니다"로 취급 -- add_feature 기본값과 동일)
 ```
 
@@ -156,10 +160,10 @@ Write 도구:
 
 - **언제**: 실제 구현 전에 진행 가능 여부를 확인할 때. `stateHints.buildApproved === true`면 다른 어떤 intent(단, `finish_session`/`verify` 제외)든 무조건 여기로 온다.
 - **산출**: Build Checklist(작업 체크리스트) + Verification Target. 이 회의를 통과해야 `vault-template/90_System/Build Gates.md`의 Build Gate를 넘어 Builder가 움직일 수 있다.
-- **실제로 할 일**:
-  1. `Build Gates.md`의 통과 체크리스트를 그대로 확인한다 — Project Brief 존재, Current State 파악됨, MVP Scope 존재, Unknown Map 검토됨, 미해결 결정 0개(또는 명시적으로 미룸), 사용자 승인 완료, Minimality Ladder 통과, 검증 목표 존재. 하나라도 비면 그 항목을 채우기 위해 Discovery/Scope Meeting으로 돌아간다 — 절대 임의로 통과시키지 않는다.
-  2. `vault/10_Projects/{project}/Phase Plan.md` 틀을 채운다 — 목표 / 이번에 할 것 / 이번에 하지 않을 것 / 작업 체크리스트 / 완료 증거 / 승인 상태(사용자가 범위를 이해함, 사용자가 진행을 승인함 두 체크박스).
-  3. `docs/02_PRODUCT_SPEC.md` "3. Build Readiness 흐름"의 출력 형식대로 사용자에게 최종 확인을 받는다 — "이번에 만들 것 / 만들지 않을 것 / 확인 방법"을 보여주고 "이 범위로 진행할까요?"라고 묻는다.
+- **실제로 할 일 (순서를 반드시 이대로 지킨다 — 승인 문구를 먼저 안내했다가 승인 시도가 실패한 뒤에야 Phase Plan.md를 작성한 역전이 실제 라이브 세션에서 관측된 적이 있다)**:
+  1. `vault/10_Projects/{project}/Phase Plan.md` 틀을 `Write` 도구로 **실제로 저장**한다 — 목표 / 이번에 할 것 / 이번에 하지 않을 것 / 작업 체크리스트 / 완료 증거 / 승인 상태(사용자가 범위를 이해함, 사용자가 진행을 승인함 두 체크박스). 자세한 절차는 `guided-plan` 스킬로 위임한다.
+  2. `Build Gates.md`의 통과 체크리스트를 그대로 확인한다 — Phase Plan.md 실제 저장됨(1번에서 방금 했는지), Project Brief 존재, Current State 파악됨, MVP Scope 존재, Unknown Map 검토됨, 미해결 결정 0개(또는 명시적으로 미룸), 사용자 승인 완료, Minimality Ladder 통과, 검증 목표 존재. 하나라도 비면 그 항목을 채우기 위해 Discovery/Scope Meeting으로 돌아간다 — 절대 임의로 통과시키지 않는다.
+  3. `docs/02_PRODUCT_SPEC.md` "3. Build Readiness 흐름"의 출력 형식대로 사용자에게 최종 확인을 받는다 — "이번에 만들 것 / 만들지 않을 것 / 확인 방법"을 보여주고 "이 범위로 진행할까요?"라고 묻는다. **이 화면과 `[senpai-go:...]` 안내는 1번의 `Write` 호출이 이미 끝난 뒤에만 보여준다.**
   4. 사용자가 채팅에 `[senpai-go:{project}]`를 정확한 프로젝트 이름과 함께 그대로 보내야 `scripts/senpai-approve.js`가 인프로세스로 `.senpai/state.json`에 `approved_scope: true`, `allowed_files`, `sensitive_files`, `verification_targets`를 기록하고, 그래야 실제 PreToolUse 게이트(`scripts/scope-check.js`)가 Builder의 쓰기를 허용한다(별도의 `/senpai-approve` 슬래시 커맨드는 존재하지 않는다). 이 스킬은 Phase Plan 문서만 만들고 사용자에게 이 문구를 정확히 보내야 한다고 안내할 뿐, `state.json` 갱신 자체는 스스로 하지 않는다. "이 범위로 진행할까요?"에 "네"/"좋아요" 같은 다른 말로 답하거나 프로젝트 이름을 틀리면 승인이 기록되지 않는다는 것을 사용자에게 분명히 알린다.
 
 ### Review Meeting
@@ -196,17 +200,17 @@ Write 도구:
 입력: `"로그인 기능 붙여줘"`
 
 ```bash
-# 1. 의도 분류
-node scripts/classify-intent.js "로그인 기능 붙여줘"
+# 1. 의도 분류 (경로는 따옴표 없이, 메시지 인자만 따옴표로 -- 1단계 참고)
+node ${CLAUDE_PLUGIN_ROOT}/scripts/classify-intent.js "로그인 기능 붙여줘"
 # -> add_feature
 
-# 2. 상태 힌트 (신규 프로젝트라 state.json 없음 -> fail-closed)
-node scripts/state-store.js
+# 2. 상태 힌트 (신규 프로젝트라 state.json 없음 -> fail-closed. 인자 없는 스크립트라 경로를 따옴표로 감싸도 안전)
+node "${CLAUDE_PLUGIN_ROOT}/scripts/state-store.js"
 # -> {"valid":false,"reason":"missing"}
 # => hasUnresolvedDecisions=true, buildApproved=false
 
 # 3. 회의 선택 (stateHints 없이 -- add_feature 기본값이 이미 discovery_meeting)
-node scripts/select-meeting.js "add_feature"
+node ${CLAUDE_PLUGIN_ROOT}/scripts/select-meeting.js "add_feature"
 # -> discovery_meeting
 ```
 
@@ -216,7 +220,9 @@ node scripts/select-meeting.js "add_feature"
 
 ## 알려진 제약
 
-`classify-intent.js`, `select-meeting.js`, `state-store.js`, `doctor.js`는 모두 `require.main` CLI 블록을 가진 스크립트라 `node scripts/<name>.js [args]`로 바로 실행된다 — **`node -e "require(...)..."` 형태는 절대 쓰지 않는다.** 임의 코드 실행이라 `scripts/scope-check.js`(G1)가 스크립트 이름과 무관하게 항상 차단한다.
+`classify-intent.js`, `select-meeting.js`, `state-store.js`, `doctor.js`는 모두 `require.main` CLI 블록을 가진 스크립트라 `node ${CLAUDE_PLUGIN_ROOT}/scripts/<name>.js [args]`로 바로 실행된다(경로를 상대경로 `scripts/<name>.js`가 아니라 `${CLAUDE_PLUGIN_ROOT}`로 가리키는 이유, 그리고 인자가 있을 때 경로를 따옴표로 감싸면 안 되는 이유는 1단계 참고) — **`node -e "require(...)..."` 형태는 절대 쓰지 않는다.** 임의 코드 실행이라 `scripts/scope-check.js`(G1)가 스크립트 이름과 무관하게 항상 차단한다.
+
+**상대경로 `node scripts/<name>.js` 형태를 쓰지 않는다.** 이 저장소(플러그인 개발 저장소) 안에서는 우연히 동작하지만, `scripts/init.js`가 사용자 프로젝트에 `scripts/` 디렉토리를 복사하지 않으므로 실제 사용자 프로젝트에서는 항상 G1 fail-closed deny로 거부된다(라이브 재현 실측으로 확인됨). 이 거부는 Bash 호출 자체가 훅에 막혀 일어나므로 Node의 "Cannot find module" 에러조차 보이지 않고, 모델이 그 상황에서 스스로 절대경로로 재시도하는 것도 실측상 관측되지 않았다 — 그래서 위 예시들은 처음부터 `${CLAUDE_PLUGIN_ROOT}` 절대경로 형태로 문서화되어 있다.
 
 `state-store.js`의 CLI 형태는 **읽기 전용**이다(`readState()`만 호출하고 인자는 전부 무시한다) — `approved_scope`/`allowed_files`를 실제로 켜는 것은 이 스킬도, 다른 어떤 스킬도 아니다. 그건 `scripts/senpai-approve.js`(사용자가 정확한 프로젝트 이름과 함께 `[senpai-go:{project}]` 문구를 직접 보낼 때만 `hooks/scripts/handler.js`의 `UserPromptSubmit` 처리 안에서 실행됨)만의 몫이다. Build Readiness 승인 흐름은 `skills/guided-plan/SKILL.md`를 참고한다.
 

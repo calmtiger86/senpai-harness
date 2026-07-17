@@ -1,10 +1,6 @@
 # Changelog
 
-아직 공개 배포 전이며, 버전은 로컬 개발 이력을 추적하는 용도입니다.
-
-## [0.2.0] - Unreleased
-
-<!-- DRAFT: WP-C2 스크립트 실동작 확인 후 최종 확정 예정. 아직 배포되지 않았으며, 이 버전 번호 상향(.claude-plugin/plugin.json, marketplace.json)은 커밋·푸시 전이므로 되돌릴 수 있다. -->
+## [0.2.0] - 2026-07-16
 
 ### Added (진행 중 — docs/P7_BIG_ITEMS_IMPLEMENTATION_PLAN.md 웨이브)
 - **신규 커맨드 4개** (`/senpai-harness:status` / `:recall` / `:save` / `:help`): 프로젝트 단계 확인, 지난 세션 불러오기, 세션 도중 Obsidian 기억 즉시 저장, 비개발자용 사용법 안내

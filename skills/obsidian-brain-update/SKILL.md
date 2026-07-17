@@ -18,7 +18,7 @@ Senpai Harness는 작업이 끝나면 결정, 오류, 검증, 다음 단계가 O
 
 1. **Guided Work 흐름이 끝난 직후** — Builder가 승인된 체크리스트 항목을 구현하고, Evidence Reviewer가 완료 증거를 확인한 다음. (`docs/02_PRODUCT_SPEC.md` "4. Guided Work 흐름" 6단계: "Memory Librarian이 변경 요약 저장")
 2. **Review Meeting이 끝난 직후** — 구현 결과를 검토하고 다음 방향을 정한 다음.
-3. **Checkout Meeting이 끝난 직후** — 세션을 정리하고 다음 시작점을 저장하는 단계. (`docs/02_PRODUCT_SPEC.md` "7. 자동 체크아웃 흐름" 7단계: "Obsidian 업데이트")
+3. **Checkout Meeting이 끝난 직후** — 세션을 정리하고 다음 시작점을 저장하는 단계. (`docs/02_PRODUCT_SPEC.md` "7. 자동 체크아웃 흐름" 7단계: "Obsidian 업데이트") 이 시점에만 추가로 `Connectivity Matrix.md`/`Rewire History.md`도 갱신합니다 (아래 "Connectivity Matrix.md / Rewire History.md (Checkout 전용)" 절 참고).
 
 추가로, 사용자가 "정리해줘", "기억해둬", "저장해줘", "오늘 여기까지"처럼 명시적으로 요청하면 그 즉시 실행합니다.
 
@@ -51,7 +51,9 @@ Senpai Harness는 작업이 끝나면 결정, 오류, 검증, 다음 단계가 O
 | `Agent Graph.md` | `vault/60_Agent_Graph/Agent Graph.md` | 스냅샷 덮어쓰기 |
 | `Edge Logs.md` | `vault/60_Agent_Graph/Edge Logs.md` | 이어쓰기 (표에 행 추가) |
 
-`Task Log.md`, `30_Errors/ERR-*.md`(개별 오류 기록), `40_Playbooks/`(Playbook 전체), `60_Agent_Graph/Connectivity Matrix.md`, `60_Agent_Graph/Rewire History.md`는 이 스킬의 범위 밖입니다. Task Log는 Guided Work 진행 중 작업 단위로 바로 기록되고, 개별 오류 기록 파일(`ERR-000N.md`)과 Playbook 승격(`PB-000N.md`, `Playbook Index.md`)은 `skills/error-to-playbook/SKILL.md`(2026-07 구현)의 몫입니다 — 그 스킬이 이 스킬보다 먼저 실행되어 ERR 파일을 만들거나 갱신해두면, 이 스킬은 아래 "Error Index.md" 절에서 그 결과를 표에 반영하기만 합니다. Connectivity Matrix와 Rewire History는 `Edge Logs.md`에 쌓인 기록을 나중에 집계/비교해야 채울 수 있는 표라서 아직 스키마 단계로 남아 있습니다(`vault-template/60_Agent_Graph/Connectivity Matrix.md` 안내문 참고) — 이 스킬은 그 집계를 하지 않습니다. 이 파일들은 건드리지 마세요.
+`Task Log.md`, `30_Errors/ERR-*.md`(개별 오류 기록), `40_Playbooks/`(Playbook 전체)는 이 스킬의 범위 밖입니다. Task Log는 Guided Work 진행 중 작업 단위로 바로 기록되고, 개별 오류 기록 파일(`ERR-000N.md`)과 Playbook 승격(`PB-000N.md`, `Playbook Index.md`)은 `skills/error-to-playbook/SKILL.md`(2026-07 구현)의 몫입니다 — 그 스킬이 이 스킬보다 먼저 실행되어 ERR 파일을 만들거나 갱신해두면, 이 스킬은 아래 "Error Index.md" 절에서 그 결과를 표에 반영하기만 합니다. 이 파일들은 건드리지 마세요.
+
+`60_Agent_Graph/Connectivity Matrix.md`와 `60_Agent_Graph/Rewire History.md`는 이 7개 파일과 성격이 달라 별도 취급합니다 — 매 작업 단위가 아니라 **Checkout Meeting 직후에만**, `scripts/update-matrix.js`(순수 집계 스크립트, 2026-07 구현)의 결과를 받아서 갱신합니다. 아래 "Connectivity Matrix.md / Rewire History.md (Checkout 전용)" 절을 참고하세요.
 
 `00_Dashboard/Completion Evidence.md`(`type: completion_evidence_dashboard`)도 건드리지 않습니다. 그 파일은 여러 프로젝트를 가로지르는 정적 안내문이고, 표 형태의 프로젝트별 데이터를 담지 않습니다. 실제로 매 작업마다 바뀌어야 하는 것은 프로젝트 폴더 안의 `Completion Evidence.md`(`type: completion_evidence`, `templates/completion-evidence.md` 기반)입니다.
 
@@ -281,7 +283,7 @@ updated: {date}
 - 각 섹션은 "이번 작업"만 담습니다 (누적 아님). 예: `Senpai Orchestrator → Product Strategist → Builder (강함, 사용자가 B안을 승인해서 결정)`.
 - "사용자 결정이 영향을 준 지점"에서는 실제 결정을 `[[ADR-XXXX-...]]`로 링크해, 어떤 결정이 어떤 경로를 바꿨는지 클릭으로 따라갈 수 있게 합니다.
 - 차단된 경로에는 Risk Guardian이나 Skeptic이 막은 시도를 적습니다.
-- 여기 적은 "강한 경로"/"보조 경로"/"차단된 경로" 각 항목은 바로 아래 `Edge Logs.md`에 누적 행으로도 남깁니다 — 두 파일을 같은 판단으로 함께 채우는 것이지, 따로 다시 분석하는 게 아닙니다. `Rewire History.md`(라우팅이 실제로 바뀐 이력 집계)와 `Connectivity Matrix.md`(누적 집계표)는 여전히 이 스킬의 범위 밖입니다 — 둘 다 여러 회차의 `Edge Logs.md`를 모아서 비교/합산해야 채울 수 있는 표라서, 지금 이 스킬이 보는 "이번 작업 한 번"의 정보만으로는 채울 수 없습니다.
+- 여기 적은 "강한 경로"/"보조 경로"/"차단된 경로" 각 항목은 바로 아래 `Edge Logs.md`에 누적 행으로도 남깁니다 — 두 파일을 같은 판단으로 함께 채우는 것이지, 따로 다시 분석하는 게 아닙니다. `Rewire History.md`(라우팅이 실제로 바뀐 이력 집계)와 `Connectivity Matrix.md`(누적 집계표)는 "이번 작업 한 번"의 정보만으로는 채울 수 없고 여러 회차의 `Edge Logs.md`를 모아 집계해야 하므로, 이 절에서는 다루지 않습니다 — Checkout 때 `scripts/update-matrix.js`로 별도 처리합니다(아래 절 참고).
 
 ### Edge Logs.md (이어쓰기 — 표에 행 추가)
 
@@ -301,6 +303,19 @@ updated: {date}
 - **artifact**는 이 경로의 근거가 된 실제 파일 경로를 위키링크로 겁니다 — 프로젝트별 문서는 `[[10_Projects/{project}/...]]`, ADR/ERR은 그대로.
 - **user_understanding**/**user_decision**은 관련 결정이 있을 때만 채우고, 없으면 빈 칸으로 둡니다(지어내지 않습니다).
 3. 기존 행 + 새 행을 합친 전체 표를 `Write` 도구로 넘깁니다. 기존 행을 지우지 않습니다.
+
+### Connectivity Matrix.md / Rewire History.md (Checkout 전용)
+
+이 둘은 위 7개 파일과 달리 **Checkout Meeting이 끝난 직후에만** 갱신합니다(다른 두 시점에는 건드리지 않습니다 — 매 작업마다 재집계하면 소음만 커집니다). `Edge Logs.md`를 13개 에이전트 이름 그대로 누적하는 원본 로그로 두고, 이 두 파일만 4개 런타임 역할(Orchestrator/Meeting, Safety-Minimality, Builder, Evidence-Memory)로 집계한 결과이므로, 집계는 모델이 표를 눈으로 세지 않고 `scripts/update-matrix.js`(순수 함수, 부작용 없음)에 맡깁니다 — 이 하네스가 지키는 "모델이 근거 없이 지어낸 숫자 금지" 원칙을 집계에도 그대로 적용한 것입니다.
+
+1. **Connectivity Matrix.md 갱신**: `Bash` 도구로 `node scripts/update-matrix.js "vault/60_Agent_Graph/Edge Logs.md"`를 실행합니다. stdout으로 나온 마크다운 전체를 그대로 `Write` 도구에 넘겨 `vault/60_Agent_Graph/Connectivity Matrix.md`를 덮어씁니다(이 파일은 매번 Edge Logs.md 전체를 다시 집계한 스냅샷이라 이어쓰기가 아니라 덮어쓰기가 맞습니다 — `Edge Logs.md` 자체가 이미 누적 원본이므로 중복으로 누적할 필요가 없습니다).
+2. **Rewire History.md 갱신**: `scripts/update-matrix.js`는 두 시점의 집계(이전 스냅샷과 이후 스냅샷)를 비교해 라우팅이 바뀐 지점을 찾는 `detectRewire()` 함수도 제공하지만, 지금 CLI는 한 시점의 렌더 결과만 stdout에 출력합니다(두 스냅샷을 비교하려면 별도 저장이 필요한데, 아직 그 저장 위치가 없습니다). 그래서 이번 갱신에서 `Connectivity Matrix.md`의 특정 칸(from/to 조합)이 직전 내용과 눈에 띄게 달라졌다면(예: 셀이 비어 있다가 값이 생김, 우세 weight가 바뀜) 그 사실만 `Rewire History.md`에 한 줄 추가합니다. 달라진 게 없으면 이 파일은 건드리지 않습니다.
+   ```md
+   | 날짜 | 이전 라우팅 | 변경 라우팅 | 이유 |
+   | ---- | ----------- | ----------- | ---- |
+   | 2026-07-17 | Orchestrator/Meeting → Builder (연결 없음) | Orchestrator/Meeting → Builder (강함) | Connectivity Matrix.md 갱신에서 새로 관측된 경로 |
+   ```
+3. `node scripts/update-matrix.js`는 `scripts/scope-check.js`의 `KNOWN_SAFE_SCRIPT_NAMES`에 아직 등록되지 않았습니다(별도 안전 검토 예정) — 등록 전까지는 이 `Bash` 호출이 막힐 수 있습니다. 막히면 우회하지 말고 사용자에게 그대로 보고합니다.
 
 ## 실패 처리
 
@@ -362,5 +377,6 @@ Memory Librarian의 출력 스펙(`docs/04_AGENT_SPEC.md` §10: Obsidian Update 
 - `docs/04_AGENT_SPEC.md` §10 Memory Librarian
 - `docs/05_OBSIDIAN_VAULT_SPEC.md` "주요 노트 명세", "자동 업데이트 규칙"
 - `scripts/scope-check.js` (vault/ 쓰기 허용, 자동 백업/secret 차단), `hooks/scripts/handler.js` (모든 훅 호출 자동 이벤트 로깅)
+- `scripts/update-matrix.js` (Connectivity Matrix.md/Rewire History.md 집계, 2026-07 구현)
 - `templates/completion-evidence.md`, `templates/decision-record.md`, `templates/error-record.md`
 - `vault-template/10_Projects/_template/*`, `vault-template/20_Decisions/`, `vault-template/30_Errors/`, `vault-template/60_Agent_Graph/`

@@ -1,6 +1,6 @@
 ---
 name: evidence-loop
-description: Confirms real evidence before any completion claim -- never trust the model's own belief about what it just did. Invoke whenever the user asks "다 됐어?", "확인해줘", "완료됐어?", "검증해줘", "제대로 됐어?", "문제 없어?" or right after a file change, right before writing any completion sentence, or on a TaskCompleted event. Reads the project's Completion Evidence.md (instantiated from templates/completion-evidence.md) and Verification.md, re-checks real file state via Read/Bash (not memory of a prior tool result), asks the user to run the Phase Plan's verification_commands themselves and report the result (never auto-executes them -- a security review found no way to safely auto-run arbitrary build/test commands), cross-checks .senpai/event_logs.jsonl, then reports using only the five allowed completion phrases (부분 완료 / 구현 완료, 검증 전 / 로컬 기준 완료 / 빌드 기준 완료 / 검증 완료) and never the forbidden ones. Writes vault updates with the Write tool directly under vault/ (scope-check.js exempts and backs up vault writes automatically).
+description: Confirms real evidence before any completion claim -- never trust the model's own belief about what it just did. Invoke whenever the user asks "다 됐어?", "확인해줘", "완료됐어?", "검증해줘", "제대로 됐어?", "문제 없어?" or right after a file change, right before writing any completion sentence, or on a TaskCompleted event. Reads the project's Completion Evidence.md (instantiated from templates/completion-evidence.md) and Verification.md, re-checks real file state via Read/Bash (not memory of a prior tool result), asks the user to run the Phase Plan's verification_commands themselves and report the result (never auto-executes them -- a security review found no way to safely auto-run arbitrary build/test commands), cross-checks .senpai/event_logs.jsonl, then reports using only the five allowed completion phrases (부분 완료 / 구현 완료, 검증 전 / 로컬 기준 완료 / 빌드 기준 완료 / 검증 완료) and never the forbidden ones. If the verdict came from a delegated subagent (e.g. `senpai-harness:evidence-reviewer`), the top-level reply to the user MUST include that subagent's exact "판단:" phrase verbatim -- no paraphrasing, no dropping qualifiers like "검증 전", no swapping it for emoji/checkmarks or a self-authored summary line (see 5-1단계; a live run leaked exactly this way once, producing "검증 결과: 구현 완료 ✓"). Writes vault updates with the Write tool directly under vault/ (scope-check.js exempts and backs up vault writes automatically).
 disable-model-invocation: false
 ---
 
@@ -99,6 +99,20 @@ tail -n 50 .senpai/event_logs.jsonl | grep '"file_path":"src/auth/login.js"'
 
 (`docs/02_PRODUCT_SPEC.md` "6. 검증 흐름", `vault-template/90_System/Evidence Rules.md`와 동일)
 
+#### 5-1단계 — 판정을 서브에이전트가 대신 냈다면: 표현을 토씨 하나 바꾸지 않고 전달 (필수, 예외 없음)
+
+이 확인을 최상위 대화 루프가 직접 하지 않고 서브에이전트(`Agent`/`Task` 도구로 호출한 `senpai-harness:evidence-reviewer`, 또는 Council 위원으로 소집된 같은 에이전트)에게 위임했다면, 그 서브에이전트가 돌려준 "판단:" 문구를 사용자에게 그대로 전달하는 것은 선택이 아니라 **이 스킬의 필수 산출물**입니다. 판정은 정확했는데 전달 과정에서 뭉개지면, 이 스킬 전체가 존재하는 이유(증거 없는 완료 선언 방지)가 무력화됩니다.
+
+**실측 사고 사례** (2026-07 라이브 검증 세션 발견 2, 안전 문제는 아니었지만 표현 규율 위반): `evidence-reviewer` 서브에이전트는 실제 파일을 근거로 정확히 `판단: 구현 완료, 검증 전`이라고 냈습니다. 하지만 이걸 넘겨받은 최상위 대화 루프는 사용자에게 `### 검증 결과: **구현 완료** ✓`라고 표시했습니다 — "검증 전"이 통째로 빠졌고, 이모지(✓)가 덧붙었고, "검증 결과: ..."라는 자체 요약 문구는 허용된 5개 표현 중 어느 것과도 정확히 일치하지 않습니다. (덧붙여 그 서브에이전트 자신의 "권고" 문장도 "'구현 완료'라고만 말할 것"이라며 이미 "검증 전"을 생략하고 있었고, 최상위 모델은 정확한 "판단" 필드 대신 이 축약된 "권고" 문장을 따라간 것으로 보입니다 — 두 지점 모두에서 규율이 샜습니다.)
+
+**강제 규칙 (예외 없음)**:
+
+1. 서브에이전트 출력에 "판단:" 필드가 있으면, 거기 적힌 5개 허용 표현(부분 완료 / 구현 완료, 검증 전 / 로컬 기준 완료 / 빌드 기준 완료 / 검증 완료) 중 하나를 **단어 하나도 바꾸지 않고 그대로** 사용자에게 보여줄 최종 응답에 포함시킵니다.
+2. "권고" 필드나 다른 요약 문장이 판단 문구를 축약했더라도, 최상위 응답은 반드시 "판단" 필드 원문을 따릅니다. 권고 문장을 따라가다 "검증 전", "로컬 기준" 같은 한정어를 빠뜨리지 않습니다.
+3. 허용된 5개 표현을 이모지·기호(✓, ✅, 🎉 등)로 대체하거나, "검증 결과: 구현 완료 ✓"처럼 자체 요약 문구로 바꿔치기하지 않습니다. 표현 앞뒤로 설명을 덧붙이는 것은 괜찮지만, 표현 그 자체는 원문 그대로 남겨야 합니다.
+4. **금지 예시(실측, 그대로 반복 금지)**: `### 검증 결과: **구현 완료** ✓`
+5. **올바른 예시**: `**구현 완료, 검증 전** 상태입니다.` — 5개 표현 중 하나가 토씨 하나 안 바뀌고 그대로 노출됨.
+
 ### 6단계 — `vault/10_Projects/{project}/Completion Evidence.md` 갱신
 
 **중요: `Write` 도구는 파일 전체를 덮어씁니다. 이어붙이기가 아닙니다.** 그래서 반드시 "읽기 → 기존 내용에 이번 결과를 합친 전체 내용 만들기 → 쓰기" 순서를 지킵니다. 기존 체크 표시나 과거 기록을 지우고 새로 쓰면, 그 자체가 증거를 없애는 것이 됩니다.
@@ -173,6 +187,7 @@ Write 도구:
 - 방금 전 자기 응답이나 세션 요약을 증거로 쓰지 않습니다. 매번 `Read`/`Bash`로 다시 확인합니다 — 이게 P0/P1에서 두 번 재현된 실패를 막는 유일한 방법입니다.
 - `.senpai/event_logs.jsonl`은 "시도했다"의 기록이지 "성공/거부"의 기록이 아닙니다. 결정적 증거로 쓰지 말고 2단계 직접 확인을 보강하는 용도로만 씁니다.
 - 금지 표현("완료했습니다", "문제 없습니다", "작동합니다") 중 하나라도 쓰려는 순간, 그 근거가 된 확인이 몇 단계였는지 스스로에게 되물어보세요. 답을 못 하면 그 표현을 쓰면 안 됩니다.
+- 판정을 서브에이전트(`evidence-reviewer` 등)에게 위임했다면, 그 서브에이전트의 "판단:" 문구를 토씨 하나 바꾸지 않고 사용자 응답에 그대로 포함시킵니다(5-1단계). "권고" 필드의 축약이나 최상위 모델 자신의 요약을 따라가지 않습니다. 이모지·기호(✓ 등)로 대체하거나 "검증 결과: 구현 완료 ✓" 같은 자체 문구로 바꿔치기하지 않습니다 — 이건 취향이 아니라 실측(2026-07 라이브 검증 세션 발견 2)으로 확인된 실패 패턴입니다.
 - vault 파일은 `Write` 도구로 `vault/...` 경로에 직접 씁니다(백업/시크릿 차단은 `scope-check.js`가 자동으로 처리). `Write`는 전체 덮어쓰기입니다. 기존 내용을 먼저 읽고 합친 전체 내용을 넘기세요. 그렇지 않으면 과거 검증 기록이나 Verification.md의 이전 줄이 사라집니다.
 - **빌드/테스트 명령을 스스로 Bash로 실행하지 않습니다.** `verification_commands`에 있든 없든 마찬가지입니다 — 이런 명령은 항상 사용자에게 직접 실행을 요청하고 결과를 전달받는 방식으로만 확인합니다. 직접 실행을 시도하면 안전장치가 거부하며, 거부됐다고 다른 방법으로 우회하지 않습니다.
 - vault나 `.senpai/` 폴더 자체가 없어서 확인이 안 될 때는 짐작으로 "설치가 안 됐나보다"라고 넘기지 말고 `node scripts/doctor.js`를 실행해 실제 상태를 사람이 읽을 수 있는 리포트로 확인하세요.

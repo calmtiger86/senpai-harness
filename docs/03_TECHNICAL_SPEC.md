@@ -172,10 +172,10 @@ senpai-harness/
 │   │   │   └── SKILL.md
 │   │   ├── ddtf-edge-log/
 │   │   │   └── SKILL.md
-│   │   ├── parallel-council-routing/
-│   │   │   └── SKILL.md
-│   │   └── nondev-progress-report/
+│   │   └── parallel-council-routing/
 │   │       └── SKILL.md
+│   │   # nondev-progress-report/ 없음 — 정정 (2026-07-17, 배포 전 최종 결정): 별도 스킬로 분리하지 않기로
+│   │   # 확정, agents/nondev-explainer.md에 흡수됨(docs/08_MVP_SCOPE.md §5 참고)
 │   │
 │   ├── commands/
 │   │   ├── senpai-status.md

@@ -28,12 +28,12 @@
     },
     "understanding_state": {
       "type": "string",
-      "description": "Free-form marker of how far the current meeting has progressed. Declared but never written -- guided-auto-drive/SKILL.md uses this as a conversational vocabulary the model judges each turn, not a value it reads back."
+      "description": "Free-form marker of how far the current meeting has progressed. Declared but never written -- guided-auto-drive/SKILL.md uses this as a conversational vocabulary the model judges each turn, not a value it reads back. Consequence (intentional, not a bug): hooks/scripts/handler.js#deriveMeetingStateHints() gates buildApproved on `['user_confirmed', 'decision_confirmed'].includes(state.understanding_state)`, which can never be true since no writer ever sets this field -- so buildApproved is structurally always false on the hook-nudge path, and selectMeeting() can never return build_readiness_meeting through that path. Build Readiness Meeting is reached instead via a separate skill path: guided-auto-drive's step 7 (Guided Work) calls `guided-plan` directly, bypassing this formula entirely and judging readiness from conversation context and vault documents (Unknown Map.md/Decision Index.md) instead of state.json. See docs/09_ACCEPTANCE_CRITERIA.md section 5 and docs/06_HOOKS_SPEC.md's UserPromptSubmit correction notice."
     },
     "unresolved_decisions": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Intended to list decisions surfaced but not yet confirmed by the user. No code path currently writes this field (Fable 5 stub-audit finding, P4.5) -- meeting-system's build-readiness hint formula reads it as a number (`(state.unresolved_decisions ?? 1) > 0`), a type mismatch against this array schema, and is unreachable at runtime either way. Documented as-is rather than silently dropped; not yet wired to a real writer."
+      "description": "Intended to list decisions surfaced but not yet confirmed by the user. No code path currently writes this field (Fable 5 stub-audit finding, P4.5) -- meeting-system's build-readiness hint formula (hooks/scripts/handler.js#deriveMeetingStateHints(), documented identically in skills/meeting-system/SKILL.md's step 2) reads it as a number (`(state.unresolved_decisions ?? 1) > 0`), a type mismatch against this array schema, and is unreachable at runtime either way (see the understanding_state field above for why). Documented as-is rather than silently dropped; not yet wired to a real writer."
     },
     "approved_scope": {
       "type": "boolean",

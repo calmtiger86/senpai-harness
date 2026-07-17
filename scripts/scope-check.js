@@ -155,7 +155,25 @@ const READ_ONLY_BASE_PATTERNS = [
 // select-parallel-council.js's CLI form is likewise pure/side-effect-free
 // (reads its argv, at most stats/reads vault/30_Errors/ERR-*.md, and prints
 // a JSON decision object to stdout -- see its own require.main block).
-const KNOWN_SAFE_SCRIPT_NAMES = ['classify-intent.js', 'select-meeting.js', 'doctor.js', 'state-store.js', 'select-parallel-council.js'];
+// update-matrix.js is likewise pure/side-effect-free (aggregates
+// vault/60_Agent_Graph/Edge Logs.md into a Markdown table on stdout, no
+// filesystem writes of its own) -- security-reviewer audit (2026-07)
+// confirmed no command injection (argv is always a hardcoded literal path
+// from the obsidian-brain-update skill, e.g.
+// `node scripts/update-matrix.js "vault/60_Agent_Graph/Edge Logs.md"`).
+// Its argv path itself isn't independently validated here, but this gate
+// only ever controls writes, not reads -- an arbitrary-path read via this
+// script is a subset of what the existing unconditional `cat` allowance
+// already grants, and a secret-shaped path arg is still caught upstream by
+// findSecretPath in checkToolCall's step 1 before this allowlist is reached.
+const KNOWN_SAFE_SCRIPT_NAMES = [
+  'classify-intent.js',
+  'select-meeting.js',
+  'doctor.js',
+  'state-store.js',
+  'select-parallel-council.js',
+  'update-matrix.js'
+];
 
 // P5 live-install finding (docs/HARNESS_ENGINEERING.md §C-1): a user-scope
 // plugin install activates this hook in EVERY project on the machine, not
@@ -374,9 +392,34 @@ function isReadOnlyAllowlisted(command) {
  * Matches by resolved realpath, not by string prefix (P4 live-session
  * finding): a real deployment's skills run with cwd = the user's project,
  * not the plugin's install directory, so `node scripts/classify-intent.js`
- * fails with "Cannot find module" and a model naturally retries with the
- * absolute path instead -- which a plain `^node\s+scripts\/...` regex can
- * never match. Resolving the invoked script's realpath and comparing it
+ * (relative path) never resolves to a real file there.
+ *
+ * This comment originally predicted the model would see a "Cannot find
+ * module" runtime error and naturally retry with the absolute path --
+ * corrected per a P14 live-session finding
+ * (docs/P14_MEETING_LIVE_VERIFICATION.md, 발견 3): that isn't what happens.
+ * The PreToolUse hook denies the Bash call before Node ever runs (this
+ * function can't match the nonexistent relative path, classifyMutating
+ * doesn't recognize bare `node ...` either, so checkBashCommand falls
+ * through to its G1 fail-closed deny) -- the model sees only
+ * `unrecognized/unparseable command, fail-closed per G1`, never a "Cannot
+ * find module" message, and had nothing runtime-shaped to retry from. Live
+ * observation: the model did not retry with an absolute path on its own;
+ * it moved on to self-judgment instead. The fix that landed is
+ * documentation, not a change to this function's matching logic --
+ * `skills/meeting-system/SKILL.md`'s CLI examples now use
+ * `${CLAUDE_PLUGIN_ROOT}` up front (the same env var `commands/init.md`,
+ * `doctor.md`, and `status.md` already relied on), so the model never has
+ * to discover the absolute form by trial and error. Separately, live
+ * testing also found that `hasUnresolvableSyntax`'s multiple-top-level-
+ * quoted-region rule (this file's caller, checked before this function
+ * ever runs) denies `"${CLAUDE_PLUGIN_ROOT}/scripts/x.js" "arg"` (both
+ * sides quoted = 2 quote segments) even though the path itself is valid --
+ * scripts that take a quoted argument need the path left unquoted
+ * (`node ${CLAUDE_PLUGIN_ROOT}/scripts/x.js "arg"`) to stay at 1 quote
+ * segment; SKILL.md documents this explicitly now.
+ *
+ * Resolving the invoked script's realpath and comparing it
  * against this very file's own directory (`__dirname`, fixed at
  * require-time to the real installed scripts/ folder, unreachable by any
  * Bash command the model can issue) accepts both the relative and absolute

@@ -111,6 +111,10 @@ async function onUserPromptSubmit(prompt) {
 }
 ```
 
+**정정 (2026-07, 정직화)**: 실제 `hooks/scripts/handler.js`의 `deriveMeetingStateHints()`는 위 의사코드의 `state`(`readCurrentState()`)를 그대로 옮겼지만, `buildApproved`를 계산할 때 `state.understanding_state`가 `'user_confirmed'`/`'decision_confirmed'` 중 하나여야 한다는 조건을 포함한다. `understanding_state`는 `.senpai/state.json`에 어떤 코드도 쓰지 않는 필드다(`scripts/state-store.js`의 `STATE_FIELDS` 주석, `data-schema/state.schema.json` 참고) — `guided-auto-drive/SKILL.md`가 "이해/결정 상태는 vault 문서와 대화로 판단하고 state.json에서 되읽지 않는다"고 의도적으로 설계했기 때문이다. 그 결과 **이 훅의 `additionalContext` 넛지 경로로는 `Build Readiness Meeting`(`build_readiness_meeting`)에 구조적으로 도달할 수 없다** — 새로 생긴 결함이 아니라 알려진 설계 한계다.
+
+Build Readiness Meeting은 대신 **스킬 경로**로 도달한다: `guided-auto-drive/SKILL.md`의 7단계(Guided Work)가 이 훅이나 `select-meeting.js`를 거치지 않고 `guided-plan` 스킬을 직접 호출하며, 그 스킬의 진입 게이트(`before_build`)는 `state.json` 필드가 아니라 모델이 대화 맥락과 vault 문서(`Unknown Map.md`/`Decision Index.md`)를 직접 읽어 판단한다. 자세한 실측 근거는 `docs/P6_MEETING_DISPATCH_LIVE_VERIFICATION.md`와 `docs/09_ACCEPTANCE_CRITERIA.md` 섹션 5 참고.
+
 ## 3. PreToolUse Hook
 
 파일:

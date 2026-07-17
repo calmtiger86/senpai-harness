@@ -1,64 +1,65 @@
 # Senpai Harness
 
-Senpai Harness는 비개발자가 AI의 작업 속도를 놓치지 않도록, 옆에서 질문하고 설명하고 결정 과정을 기록해주는 Obsidian 기반 Claude Code 플러그인입니다.
+Senpai Harness는 바이브코딩을 처음 해보는 사람 옆에 붙어서, 먼저 묻고, 쉽게 설명하고, 함께 결정하고, **승인된 범위만** 만들고, 모든 결정과 실패를 Obsidian(마크다운 메모 앱)에 남기는 AI 선배 하네스입니다. Claude Code(터미널에서 쓰는 AI 코딩 도구)에 설치하는 플러그인 형태로 동작합니다.
 
-"자율주행"은 AI가 혼자 알아서 코딩한다는 뜻이 아닙니다. AI가 자동으로 올바른 회의를 열고, 숨은 결정을 사용자가 이해할 수 있는 선택지로 드러내고, **사용자가 승인한 범위 안에서만** 코드를 씁니다. 승인 없는 변경은 Write/Edit뿐 아니라 Bash를 통한 우회까지 훅(hook) 레벨에서 차단됩니다.
+## 누구를 위한 것인가
 
-> **현재 상태**: 초기 버전(0.2.0)입니다. 사용하며 이상한 점이 있으면 이슈로 알려주세요.
+이런 사람들을 위해 만들었습니다. 코딩 문법을 하나도 모르는 사람, 터미널이나 Claude Code를 오늘 처음 켜보는 사람, 바이브코딩(대화하듯 AI에게 코드를 맡기는 방식)으로 앱이나 챗봇, 자동화를 만들어보고 싶은 사람, 그리고 AI가 만들어주는 결과를 따라가기 벅차서 프로젝트를 놓아버린 적 있는 사람.
 
-## 핵심 동작
+이미 코딩에 익숙하다면, 이 하네스가 요구하는 "먼저 묻고 승인받는" 절차가 오히려 느리게 느껴질 수 있습니다. Senpai Harness는 속도보다 **끝까지 따라갈 수 있는 것**을 목표로 만들었습니다.
 
-- **회의 시스템**: 새 기능/새 프로젝트 요청을 바로 구현하지 않고 Discovery·Scope·Build Readiness·Review·Checkout 회의로 라우팅
-- **Obsidian Brain**: Current State, Decision Record, Phase Plan, Completion Evidence, Session Memory를 vault에 마크다운으로 저장
-- **Minimality Ladder**: 구현 전 더 작은 대안이 있는지 먼저 확인
-- **Evidence Loop**: 증거 없이 "완료"라고 말하지 않음
-- **안전 경계(G0~G4)**: opt-in 게이트, mutating 도구 기본 거부, 결정론적 승인 캡처, 경로 정규화, fail-closed — 자세한 내용은 [`docs/SAFETY_ENFORCEMENT_POLICY.md`](docs/SAFETY_ENFORCEMENT_POLICY.md) 참고
+## "자율주행"이 무슨 뜻인가
+
+Senpai Harness를 설치하면 AI가 알아서 코드를 짜기 시작한다고 생각하기 쉽지만, 실제로는 정반대입니다.
+
+여기서 "자율주행"은 AI가 혼자 판단해서 코딩한다는 뜻이 아니라, AI가 자동으로 올바른 회의를 열고, 사용자가 모르는 결정을 이해할 수 있는 선택지로 보여주고, **사용자가 승인한 범위 안에서만** 코드를 쓴다는 뜻입니다.
+
+> 아파트 인테리어 공사를 떠올려 보세요. 집주인이 견적서에 서명하기 전에는, 인부가 아무리 실력이 좋아도 벽에 못 하나 박을 수 없습니다. 서명은 인부가 대신 할 수 없고, 견적서에 없는 방은 서명이 있어도 손댈 수 없습니다.
+
+승인 문구를 채팅으로 직접 보내기 전까지는 AI의 파일 쓰기가 막힙니다. 이건 AI가 "알아서 조심하는" 것이 아니라, 별도의 안전장치가 기계적으로 강제하는 구조입니다.
+
+## 무엇을 해주나
+
+### 숨은 결정을 먼저 보여줍니다
+
+> "로그인 기능만 붙여주세요"라는 부탁은 간단해 보이지만, 실제로는 그 벽 안의 배선과 배관 같은 숨은 결정이 딸려옵니다 — 정보를 어디에 저장할지, 비밀번호는 어떻게 지킬지, 애초에 로그인이 정말 필요한지. 좋은 시공사는 망치부터 들지 않고, 숨은 문제 목록을 먼저 보여주고 어떻게 할지 물어봅니다.
+
+Senpai Harness도 같습니다. "기능 붙여줘"라는 요청이 오면 바로 코딩하지 않고, 숨어 있는 결정을 목록으로 만들어 A/B/C/D 같은 선택지 카드로 보여줍니다. 더 작은 방법으로도 충분한 경우에는 그 대안을 **먼저** 권합니다.
+
+### 위험한 요청에는 여러 관점이 동시에 모입니다
+
+> 병원에서 큰 수술 전에는 내과·외과·마취과 의사가 동시에 모여 각자의 관점으로 검토하는 협진을 합니다. 협진 의사들은 의견만 낼 뿐, 수술칼은 집도의 한 사람만 잡습니다.
+
+"결제 기능 넣어줘"처럼 위험 신호가 있는 요청에는, 위험 담당·기획 담당·검증 담당 같은 여러 역할이 동시에 검토합니다. 이 검토자들은 전부 읽기 전용이라 아무도 코드를 직접 쓰지 못합니다 — 칼은 여전히 한 명만 잡습니다.
+
+### AI의 "다 됐습니다"를 그대로 믿지 않습니다
+
+> 인부가 "공사 끝났습니다"라고 말해도, 감리사(공사가 제대로 됐는지 확인하는 사람)가 현장을 직접 확인하기 전에는 잔금을 치르지 않습니다.
+
+Senpai Harness는 완료를 다섯 단계("부분 완료"부터 "검증 완료"까지)로만 말하게 하고, 증거 없이 그냥 "완료"라고 말하는 것을 막습니다. "다 됐어?"라고 물으면, 아직 안 된 부분은 안 됐다고 **정직하게** 답합니다.
+
+### 결정과 실패를 다음 세션에 넘겨줍니다
+
+> 담당자가 바뀌어도 일이 이어지는 회사에는 인수인계 노트가 있습니다. 무슨 결정을 왜 했는지, 어떤 사고가 있었고 어떻게 수습했는지 적혀 있어서, 새 담당자가 처음부터 다시 파악할 필요가 없습니다.
+
+Senpai Harness는 결정한 이유, 오류를 해결한 과정, 오늘 한 일과 남은 일을 Obsidian vault(기억 폴더)에 자동으로 남깁니다. 다음에 "이어서 해줘"라고만 말하면, 어제 어디까지 했는지부터 다시 보여줍니다.
 
 ## 설치
 
-이 저장소 자체가 marketplace이자 유일한 plugin입니다(`.claude-plugin/marketplace.json`의 `source: "./"`).
+Claude Code에서 아래 세 줄을 순서대로 입력하면 됩니다.
 
 ```text
 /plugin marketplace add calmtiger86/senpai-harness
 /plugin install senpai-harness@senpai-harness
-```
-
-이 저장소는 내부 개발 저장소(`senpai-harness-dev`)에서 배포용 파일만 골라 별도로 빌드해 배포합니다 — 자세한 내용은 [`docs/11_DEPLOYMENT_STRATEGY.md`](docs/11_DEPLOYMENT_STRATEGY.md) 참고.
-
-### 설치 후 초기화
-
-```text
 /senpai-harness:init
 ```
 
-`vault/`, `CLAUDE.md`, `AGENTS.md`, `senpai.config.yaml`이 생성됩니다(`senpai.config.yaml`이 하네스의 안전 경계가 켜지는 opt-in 마커입니다 — 이 파일이 없는 프로젝트에서는 어떤 검사도 실행되지 않고 Claude Code 기본 동작 그대로입니다).
+마지막 줄까지 실행하면 프로젝트에 `vault/`(Obsidian 기억 폴더), `CLAUDE.md`, `AGENTS.md`, `senpai.config.yaml`이 만들어집니다. 이 중 `senpai.config.yaml`이 하네스의 안전장치를 켜는 스위치입니다 — 이 파일이 없는 프로젝트에서는 아무 검사도 실행되지 않고 Claude Code 기본 동작 그대로 움직입니다.
 
-문제가 있으면 `node scripts/doctor.js`로 진단할 수 있습니다.
+설치나 동작 중 문제가 있으면 `/senpai-harness:doctor`를 입력해 보세요. 무엇이 문제인지 비개발자도 읽을 수 있는 말로 알려줍니다.
 
-## 구조
-
-```text
-.claude-plugin/plugin.json   # 플러그인 메타데이터
-.claude-plugin/marketplace.json
-agents/                      # 런타임 역할 + 정의된 서브에이전트
-skills/                      # guided-auto-drive 등 절차 스킬
-commands/                    # /senpai-harness:init
-hooks/hooks.json             # PreToolUse/UserPromptSubmit 등 훅 등록
-scripts/                     # 안전 경계 코어(state-store, approval-gate, scope-check 등)
-vault-template/              # Obsidian vault 템플릿(10폴더)
-project-template/            # 대상 프로젝트에 복사되는 CLAUDE.md/AGENTS.md/senpai.config.yaml
-docs/                        # 설계 문서 (00_CONCEPT ~ 11_DEPLOYMENT_STRATEGY, SAFETY_ENFORCEMENT_POLICY)
-```
-
-## 문서
-
-- [`docs/00_CONCEPT.md`](docs/00_CONCEPT.md) ~ [`docs/11_DEPLOYMENT_STRATEGY.md`](docs/11_DEPLOYMENT_STRATEGY.md): 설계 명세
-- [`docs/SAFETY_ENFORCEMENT_POLICY.md`](docs/SAFETY_ENFORCEMENT_POLICY.md): 안전 경계 정책과 감사 이력
-
-## Phase 2 (계획, MVP 필수 아님)
-
-MCP 서버로 Vault 검색, Session Memory 조회, Edge Log 분석 등을 선택적으로 확장할 수 있습니다. MVP는 MCP 없이 완전히 동작합니다.
+새로 나온 버전이 궁금하면 [`CHANGELOG.md`](CHANGELOG.md)를 확인하세요.
 
 ## 라이선스
 
-[MIT](LICENSE) — 공개 배포 시점부터 적용됩니다.
+[MIT](LICENSE)
