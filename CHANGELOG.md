@@ -2,6 +2,23 @@
 
 ## [0.3.0] - 2026-07-17
 
+### Added
+- **자동 버전 관리** (`scripts/dev/version.js`): plugin.json을 정본으로 marketplace.json을 동기화. `classifyBump`가 `git diff --name-status`를 결정론적으로 분석해 배포 표면 변화 기준으로 patch/minor/major를 제안하고, `build-release.js`가 매 빌드마다 제안+근거를 출력한다. 실제 적용은 `--bump=<level>`을 사람이 명시해야만 일어나는 반자동 설계(플래그 없으면 완전한 no-op)
+- **Edge Log 집계** (`scripts/update-matrix.js`): Obsidian vault의 Edge Logs.md를 13개 에이전트 → 4개 역할 그룹으로 매핑해 Connectivity Matrix/Rewire History를 생성하는 순수 집계 모듈(부작용 없음, 안전 검토 후 허용목록 등록)
+- 공개 배포 (`calmtiger86/senpai-harness`) — 이 저장소(`calmtiger86/senpai-harness-dev`)와 개발 이력을 완전히 분리한 새 공개 저장소로 최초 배포. README.md 전면 개편(비개발자 초보자 대상, 설계 문서 나열 제거, 검증된 비유로 핵심 동작 설명)
+
+### Fixed
+- Builder 서브에이전트 핸드오프가 프로즈뿐이라 실제로 위임되지 않던 배선 누락 (`skills/guided-plan/SKILL.md`에 명시적 스폰 지시 추가)
+- 위원회(Parallel Council) 소집 후 Unknown Map/Decision Card가 결정론적으로 강제되지 않던 배선 누락
+- Build Readiness Meeting 순서 역전(계획 작성보다 승인 요청이 먼저 나타나던 문제) — Build Gate 체크리스트 첫 항목으로 명시해 정정, 라이브 재검증 완료
+- Review Meeting 완료 판정 시 서브에이전트의 정확한 문구("구현 완료, 검증 전")가 최상위 응답에서 누락되던 문제
+- `classify-intent.js` 등 CLI 예시의 상대경로가 실제 사용자 프로젝트에서 거부되던 문제(절대경로로 정정)
+- UserPromptSubmit 훅이 비동기 위원 완료 콜백을 사용자 메시지로 오인해 재발동하던 결함
+- 이미 폐기된 승인 방식(`permissionDecision:"ask"`)을 설명하던 죽은 문서(`skills/decision-card/SKILL.md`)
+
+### Tests
+- `version.js`/`update-matrix.js`/`build-release.js` 회귀 테스트 신설, 총 유닛 테스트 23개 파일
+
 ## [0.2.0] - 2026-07-16
 
 ### Added (진행 중 — docs/P7_BIG_ITEMS_IMPLEMENTATION_PLAN.md 웨이브)
