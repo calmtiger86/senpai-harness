@@ -1,4 +1,26 @@
+<div align="center">
+
 # Senpai Harness
+
+**바이브코딩을 처음 해보는 사람 옆에 붙어서, 먼저 묻고, 함께 결정하고, 승인된 범위만 만드는 AI 선배 하네스**
+
+[![Version](https://img.shields.io/badge/version-0.3.1-blue)](CHANGELOG.md)
+[![License: MIT](https://img.shields.io/github/license/calmtiger86/senpai-harness)](LICENSE)
+[![Built for Claude Code](https://img.shields.io/badge/built%20for-Claude%20Code-000000)](https://claude.com/claude-code)
+
+한국어 · [English](README.en.md) · [中文](README.zh.md) · [日本語](README.ja.md)
+
+</div>
+
+---
+
+## 목차
+
+- [누구를 위한 것인가](#누구를-위한-것인가)
+- ["자율주행"이 무슨 뜻인가](#자율주행이-무슨-뜻인가)
+- [무엇을 해주나](#무엇을-해주나)
+- [설치](#설치)
+- [라이선스](#라이선스)
 
 Senpai Harness는 바이브코딩을 처음 해보는 사람 옆에 붙어서, 먼저 묻고, 쉽게 설명하고, 함께 결정하고, **승인된 범위만** 만들고, 모든 결정과 실패를 Obsidian(마크다운 메모 앱)에 남기는 AI 선배 하네스입니다. Claude Code(터미널에서 쓰는 AI 코딩 도구)에 설치하는 플러그인 형태로 동작합니다.
 
@@ -62,4 +84,4 @@ Claude Code에서 아래 세 줄을 순서대로 입력하면 됩니다.
 
 ## 라이선스
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 CalmTiger
