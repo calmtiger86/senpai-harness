@@ -2,6 +2,12 @@
 
 ## [0.3.1] - 2026-07-17
 
+### Fixed
+- Codex CLI(OpenAI)의 네이티브 파일 수정 도구 `apply_patch`가 `MUTATING_TOOL_NAMES`에 없어 scope/승인/secret 검사를 전부 우회하던 안전 결함(실제 Codex 라이브 세션에서 발견). `apply_patch`는 `file_path` 필드가 없고 건드리는 모든 경로가 patch 텍스트 안에 문자열로 들어있어 `scripts/scope-check.js`에 전용 검사 분기를 추가했다. 여러 파일을 한 번에 건드리는 patch는 전부가 승인 범위 안에 있어야 허용된다
+
+### Tests
+- `tests/unit/scope-check.test.js`에 apply_patch 회귀 테스트(test38) 추가
+
 ## [0.3.0] - 2026-07-17
 
 ### Added
